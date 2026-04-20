@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    const result = await sql`SELECT id, name, website_url, last_crawled FROM clients ORDER BY name`;
+    const result = await sql`SELECT id, name, website_url, summary, last_crawled FROM clients ORDER BY name`;
     return NextResponse.json(result.rows);
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
