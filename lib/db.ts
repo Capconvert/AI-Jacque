@@ -7,6 +7,7 @@ export async function initializeDatabase() {
       name VARCHAR(255) NOT NULL UNIQUE,
       website_url VARCHAR(500) NOT NULL,
       crawled_content TEXT,
+      summary TEXT,
       last_crawled TIMESTAMP,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`;

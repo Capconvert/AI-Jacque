@@ -24,9 +24,9 @@ Provide answers as Jacque would - direct, knowledgeable, and focused on results.
 
 export async function askAIJacque(clientId: number, question: string) {
   try {
-    // Get client info and crawled content
+    // Get client info, summary, and crawled content
     const clientResult = await sql`
-      SELECT id, name, website_url, crawled_content FROM clients WHERE id = ${clientId}
+      SELECT id, name, website_url, summary, crawled_content FROM clients WHERE id = ${clientId}
     `;
 
     if (!clientResult.rows.length) {
@@ -38,7 +38,10 @@ export async function askAIJacque(clientId: number, question: string) {
 Client: ${client_data.name}
 Website: ${client_data.website_url}
 
-Client's Site Summary:
+Client Summary:
+${client_data.summary || 'No summary available'}
+
+Detailed Website Content:
 ${client_data.crawled_content || 'No content crawled yet'}
     `;
 
