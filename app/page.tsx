@@ -48,21 +48,21 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="bg-white border-b border-gray-200 p-6">
+    <main className="min-h-screen bg-black flex flex-col font-mono">
+      <div className="bg-black border-b border-green-700 p-4">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold">AI Jacque</h1>
-          <p className="text-gray-600">Search Marketing Assistant</p>
+          <h1 className="text-xl font-bold text-green-400">AI Jacque</h1>
+          <p className="text-green-600 text-sm">Search Marketing Assistant</p>
         </div>
       </div>
 
-      <div className="flex-1 flex p-6 max-w-4xl mx-auto w-full">
+      <div className="flex-1 flex p-4 max-w-4xl mx-auto w-full">
         <div className="flex-1 flex flex-col">
-          <div className="bg-white rounded-lg shadow flex flex-col h-full">
+          <div className="bg-black rounded-none flex flex-col h-full border border-green-700">
             {/* Chat Messages */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
               {messages.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-gray-400">
+                <div className="h-full flex items-center justify-center text-green-700">
                   <p>Ask me about any of your clients...</p>
                 </div>
               ) : (
@@ -73,20 +73,20 @@ export default function Home() {
                       className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       <div
-                        className={`max-w-xl rounded-lg p-4 ${
+                        className={`max-w-xl p-2 ${
                           msg.role === 'user'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 text-gray-800'
+                            ? 'text-yellow-400'
+                            : 'text-green-400'
                         }`}
                       >
-                        <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                        <p className="whitespace-pre-wrap text-xs">{msg.content}</p>
                       </div>
                     </div>
                   ))}
                   {loading && (
                     <div className="flex justify-start">
-                      <div className="bg-gray-100 rounded-lg p-4">
-                        <p className="text-gray-600 text-sm">Thinking...</p>
+                      <div className="text-green-400 text-xs">
+                        <p>Thinking...</p>
                       </div>
                     </div>
                   )}
@@ -96,20 +96,20 @@ export default function Home() {
             </div>
 
             {/* Input Area */}
-            <div className="border-t border-gray-200 p-4">
-              <div className="flex gap-3">
+            <div className="border-t border-green-700 p-4">
+              <div className="flex gap-2">
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Ask about any client... e.g. 'What's our traffic for Acme Corp?'"
-                  className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 bg-black border border-green-700 text-green-400 px-3 py-2 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-green-700 placeholder-green-700"
                   rows={2}
                 />
                 <button
                   onClick={handleSend}
                   disabled={loading || !input.trim()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+                  className="px-3 py-2 bg-black border border-green-700 text-green-400 hover:bg-green-700 hover:text-black disabled:opacity-50 disabled:cursor-not-allowed font-medium text-xs"
                 >
                   Send
                 </button>

@@ -1,9 +1,27 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { sql } from '@vercel/postgres';
+import { extractClientName } from './client-parser';
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
+
+export async function findClientByName(question: string): Promise<number | null> {
+  try {
+    const clientName = extractClientName(question);
+    if (!clientName) return null;
+
+    const result = await sql`
+      SELECT id FROM clients WHERE LOWER(name) LIKE LOWER(${'%' + clientName + '%'})
+      LIMIT 1
+    `;
+
+    return result.rows.length > 0 ? result.rows[0].id : null;
+  } catch (error) {
+    console.error('Client lookup error:', error);
+    return null;
+  }
+}
 
 const SYSTEM_PROMPT = `You are AI Jacque, an expert search marketing assistant created to answer client questions.
 
