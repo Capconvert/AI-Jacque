@@ -71,7 +71,7 @@ ${client_data.crawled_content || 'No content crawled yet'}
     `;
 
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-opus-4-7',
       max_tokens: 1024,
       system: SYSTEM_PROMPT + '\n\n' + clientContext,
       messages: [
