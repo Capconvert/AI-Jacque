@@ -2,26 +2,26 @@
 @import "tailwindcss/theme";
 @import "tailwindcss/utilities";
 
-:root {
-  --tw-color-custom-black: #000000;
-  --tw-color-custom-cyan: #00ceff;
-  --tw-color-custom-darkGrey: #1a1a1a;
+.bg-custom-black {
+  background-color: #000000;
 }
 
-@layer utilities {
-  .bg-custom-black {
-    @apply bg-[#000000];
-  }
-  .bg-custom-cyan {
-    @apply bg-[#00ceff];
-  }
-  .text-custom-black {
-    @apply text-[#000000];
-  }
-  .text-custom-cyan {
-    @apply text-[#00ceff];
-  }
-  .border-custom-darkGrey {
-    @apply border-[#1a1a1a];
-  }
+.bg-custom-cyan {
+  background-color: #00ceff;
+}
+
+.text-custom-black {
+  color: #000000;
+}
+
+.text-custom-cyan {
+  color: #00ceff;
+}
+
+.text-custom-darkGrey {
+  color: #1a1a1a;
+}
+
+.border-custom-darkGrey {
+  border-color: #1a1a1a;
 }
