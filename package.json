@@ -8,7 +8,7 @@
     "dev": "concurrently \"next dev\" \"wait-on http://localhost:3000 && electron .\"",
     "dev:web": "next dev",
     "dev:electron": "electron .",
-    "build": "next build && npm run build:electron",
+    "build": "next build",
     "build:electron": "tsc -p electron/tsconfig.json",
     "start": "next start",
     "pack": "electron-builder --dir",
@@ -26,12 +26,14 @@
       "main": "dist/main.js"
     },
     "asarUnpack": [],
+    "icon": "build/icon.png",
     "mac": {
       "target": [
         "dmg",
         "zip"
       ],
-      "category": "public.app-category.productivity"
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.png"
     },
     "dmg": {
       "contents": [
