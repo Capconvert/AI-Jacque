@@ -1,0 +1,72 @@
+
+> ai-jacque@0.1.0 dist
+> npm run build && electron-builder
+
+
+> ai-jacque@0.1.0 build
+> next build
+
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /Users/jacque/package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * /Users/jacque/ai-jacque/package-lock.json
+
+▲ Next.js 16.2.4 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1335ms
+  Running TypeScript ...
+  Finished TypeScript in 736ms ...
+  Collecting page data using 14 workers ...
+  Generating static pages using 14 workers (0/13) ...
+  Generating static pages using 14 workers (3/13) 
+  Generating static pages using 14 workers (6/13) 
+  Generating static pages using 14 workers (9/13) 
+✓ Generating static pages using 14 workers (13/13) in 181ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /admin
+├ ○ /admin/summaries
+├ ƒ /api/ask
+├ ƒ /api/clients
+├ ƒ /api/crawl
+├ ƒ /api/generate-summaries
+├ ƒ /api/init
+├ ƒ /api/migrate
+└ ƒ /api/update-summary
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+  • electron-builder  version=26.8.1 os=25.5.0
+  • loaded configuration  file=package.json ("build" field)
+  • description is missed in the package.json  appPackageFile=/Users/jacque/ai-jacque/package.json
+  • author is missed in the package.json  appPackageFile=/Users/jacque/ai-jacque/package.json
+  • executing @electron/rebuild  electronVersion=41.2.1 arch=arm64 buildFromSource=false workspaceRoot=/Users/jacque/ai-jacque projectDir=./ appDir=./
+  • installing native dependencies  arch=arm64
+  • preparing       moduleName=bufferutil arch=arm64
+  • finished        moduleName=bufferutil arch=arm64
+  • completed installing native dependencies
+  • packaging       platform=darwin arch=arm64 electron=41.2.1 appOutDir=dist/mac-arm64
+  • downloading     url=https://github.com/electron/electron/releases/download/v41.2.1/electron-v41.2.1-darwin-arm64.zip size=116 MB parts=8
+  • downloaded      url=https://github.com/electron/electron/releases/download/v41.2.1/electron-v41.2.1-darwin-arm64.zip duration=4.214s
+  • searching for node modules  pm=npm searchDir=/Users/jacque/ai-jacque
+(node:57884) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+  • duplicate dependency references  dependencies=["@emnapi/wasi-threads@1.2.1","@emnapi/core@1.10.0","@emnapi/runtime@1.10.0","@tybys/wasm-util@0.10.1","bufferutil@4.1.0","domhandler@5.0.3","domutils@3.2.2","domhandler@5.0.3","domutils@3.2.2","domhandler@5.0.3","dom-serializer@2.0.0","domhandler@5.0.3","iconv-lite@0.6.3","domhandler@5.0.3","domutils@3.2.2","domhandler@5.0.3","parse5@7.3.0","parse5@7.3.0","react-dom@19.2.4"]
+  • default Electron icon is used  reason=application icon is not set
+  • falling back to ad-hoc signature for macOS application code signing
+  • signing         file=dist/mac-arm64/AI Jacque.app platform=darwin type=distribution identityName=- identityHash=none provisioningProfile=none
+  • skipped macOS notarization  reason=`notarize` options were unable to be generated
+  • building        target=macOS zip arch=arm64 file=dist/AI Jacque-0.1.0-arm64-mac.zip
+  • building        target=DMG arch=arm64 file=dist/AI Jacque-0.1.0-arm64.dmg
+  • downloading     release=dmg-builder@1.2.0 file=dmgbuild-bundle-arm64-75c8a6c.tar.gz
+  • building block map  blockMapFile=dist/AI Jacque-0.1.0-arm64.dmg.blockmap
+  • building block map  blockMapFile=dist/AI Jacque-0.1.0-arm64-mac.zip.blockmap

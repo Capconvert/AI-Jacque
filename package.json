@@ -8,7 +8,7 @@
     "dev": "concurrently \"next dev\" \"wait-on http://localhost:3000 && electron .\"",
     "dev:web": "next dev",
     "dev:electron": "electron .",
-    "build": "next build",
+    "build": "next build && npm run build:electron",
     "build:electron": "tsc -p electron/tsconfig.json",
     "start": "next start",
     "pack": "electron-builder --dir",
@@ -20,11 +20,12 @@
     "productName": "AI Jacque",
     "files": [
       "dist/**/*",
-      "node_modules/**/*",
-      ".next/**/*",
-      "public/**/*",
       "package.json"
     ],
+    "extraMetadata": {
+      "main": "dist/main.js"
+    },
+    "asarUnpack": [],
     "mac": {
       "target": [
         "dmg",

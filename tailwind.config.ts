@@ -8,10 +8,10 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        terminal: {
+        custom: {
           black: '#000000',
-          green: '#00ff41',
-          darkGreen: '#003d00',
+          darkGrey: '#1a1a1a',
+          cyan: '#00ceff',
         },
       },
     },

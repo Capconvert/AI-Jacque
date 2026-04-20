@@ -98,13 +98,13 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-black flex font-mono">
+    <main className="min-h-screen bg-custom-black flex font-mono">
       {/* Sidebar */}
-      <div className="w-64 bg-black border-r border-green-700 flex flex-col">
-        <div className="p-4 border-b border-green-700">
+      <div className="w-64 bg-custom-black border-r border-custom-darkGrey flex flex-col">
+        <div className="p-4 border-b border-custom-darkGrey">
           <button
             onClick={createNewChat}
-            className="w-full px-3 py-2 bg-green-700 text-black hover:bg-green-600 font-medium text-xs"
+            className="w-full px-3 py-2 bg-custom-cyan text-custom-black hover:opacity-90 font-medium text-xs"
           >
             + New chat
           </button>
@@ -113,7 +113,7 @@ export default function Home() {
         {/* Chat List */}
         <div className="flex-1 overflow-y-auto">
           {chats.length === 0 ? (
-            <div className="p-4 text-green-700 text-xs text-center">
+            <div className="p-4 text-custom-cyan text-xs text-center">
               No chats yet
             </div>
           ) : (
@@ -124,8 +124,8 @@ export default function Home() {
                   onClick={() => setSelectedChatId(chat.id)}
                   className={`w-full text-left px-3 py-2 text-xs rounded ${
                     selectedChatId === chat.id
-                      ? 'bg-green-700 text-black'
-                      : 'text-green-400 hover:bg-green-900'
+                      ? 'bg-custom-cyan text-custom-black'
+                      : 'text-custom-cyan hover:bg-custom-darkGrey'
                   }`}
                 >
                   <p className="truncate">{chat.title}</p>
@@ -143,7 +143,7 @@ export default function Home() {
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {messages.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-green-700">
+                <div className="h-full flex items-center justify-center text-custom-cyan">
                   <p>Ask me about any of your clients...</p>
                 </div>
               ) : (
@@ -156,8 +156,8 @@ export default function Home() {
                       <div
                         className={`max-w-2xl px-4 py-2 ${
                           msg.role === 'user'
-                            ? 'text-yellow-400'
-                            : 'text-green-400'
+                            ? 'text-custom-cyan'
+                            : 'text-custom-cyan'
                         }`}
                       >
                         <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
@@ -166,7 +166,7 @@ export default function Home() {
                   ))}
                   {loading && (
                     <div className="flex justify-start">
-                      <div className="text-green-400 text-sm">
+                      <div className="text-custom-cyan text-sm">
                         <p>Thinking...</p>
                       </div>
                     </div>
@@ -177,20 +177,20 @@ export default function Home() {
             </div>
 
             {/* Input */}
-            <div className="border-t border-green-700 p-4">
+            <div className="border-t border-custom-darkGrey p-4">
               <div className="flex gap-2">
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Ask about any client... e.g. 'What's our traffic for Acme Corp?'"
-                  className="flex-1 bg-black border border-green-700 text-green-400 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-green-700 placeholder-green-700"
+                  className="flex-1 bg-custom-black border border-custom-darkGrey text-custom-cyan px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-custom-cyan placeholder-custom-cyan placeholder-opacity-50"
                   rows={2}
                 />
                 <button
                   onClick={handleSend}
                   disabled={loading || !input.trim()}
-                  className="px-4 py-2 bg-black border border-green-700 text-green-400 hover:bg-green-700 hover:text-black disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+                  className="px-4 py-2 bg-custom-cyan text-custom-black hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
                 >
                   Send
                 </button>
@@ -198,7 +198,7 @@ export default function Home() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-green-700">
+          <div className="flex-1 flex items-center justify-center text-custom-cyan">
             <p>Select or create a chat to begin</p>
           </div>
         )}
