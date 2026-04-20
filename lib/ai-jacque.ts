@@ -9,6 +9,7 @@ const client = new Anthropic({
 export async function findClientByName(question: string): Promise<number | null> {
   try {
     const clientName = extractClientName(question);
+    console.log('Extracted client name:', clientName);
     if (!clientName) return null;
 
     const result = await sql`
@@ -16,6 +17,7 @@ export async function findClientByName(question: string): Promise<number | null>
       LIMIT 1
     `;
 
+    console.log('Database result:', result.rows);
     return result.rows.length > 0 ? result.rows[0].id : null;
   } catch (error) {
     console.error('Client lookup error:', error);
