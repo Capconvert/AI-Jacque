@@ -7,7 +7,7 @@ export function extractClientName(question: string): string | null {
     return (match[1] + ' ' + match[2]).trim();
   }
 
-  // Fallback: Look for capitalized multi-word phrases that might be company names
+  // Look for capitalized multi-word phrases that might be company names
   // This handles names like "Clean Eatz Kitchen", "Bark Potty", etc.
   const multiwordPattern = /\b([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)+)\b/;
   const multiwordMatch = question.match(multiwordPattern);
@@ -16,6 +16,18 @@ export function extractClientName(question: string): string | null {
     // Filter out leading prepositions/common words
     potentialName = potentialName.replace(/^(What|When|Where|Why|How|Tell|For|About|Regarding|The|This|That)\s+/i, '').trim();
     if (potentialName.length > 1) {
+      return potentialName;
+    }
+  }
+
+  // Fallback: Look for single capitalized words (like "Homecourt")
+  // This matches capitalized words that are typically proper nouns/company names
+  const singleWordPattern = /\b([A-Z][a-zA-Z]{2,})\b/;
+  const singleWordMatch = question.match(singleWordPattern);
+  if (singleWordMatch) {
+    let potentialName = singleWordMatch[1];
+    // Exclude common question words
+    if (!/^(What|When|Where|Why|How|Tell|For|About|Regarding|The|This|That|Can|Could|Would|Should|Is|Are|Do|Does|Did|Will|May|Might|Must|Our|Your|Their|Have|Has|Had)$/.test(potentialName)) {
       return potentialName;
     }
   }
