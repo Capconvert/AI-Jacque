@@ -2,11 +2,50 @@
   "name": "ai-jacque",
   "version": "0.1.0",
   "private": true,
+  "main": "dist/main.js",
+  "homepage": "./",
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently \"next dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "dev:web": "next dev",
+    "dev:electron": "electron .",
     "build": "next build",
+    "build:electron": "tsc -p electron/tsconfig.json",
     "start": "next start",
+    "pack": "electron-builder --dir",
+    "dist": "npm run build && electron-builder",
     "lint": "eslint"
+  },
+  "build": {
+    "appId": "com.ai-jacque.app",
+    "productName": "AI Jacque",
+    "files": [
+      "dist/**/*",
+      "node_modules/**/*",
+      ".next/**/*",
+      "public/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 110,
+          "y": 150
+        },
+        {
+          "x": 240,
+          "y": 150,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    }
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
@@ -23,9 +62,14 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9.2.1",
+    "electron": "^41.2.1",
+    "electron-builder": "^26.8.1",
+    "electron-is-dev": "^3.0.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wait-on": "^9.0.5"
   }
 }
