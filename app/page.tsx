@@ -24,7 +24,7 @@ export default function Home() {
   }, [messages]);
 
   const fetchClients = async () => {
-    const res = await fetch('/api/clients');
+    const res = await fetch('./api/clients');
     const data = await res.json();
     setClients(data);
   };
@@ -38,7 +38,7 @@ export default function Home() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/ask', {
+      const res = await fetch('./api/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientId: selectedClient, question: userMessage }),
