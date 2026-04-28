@@ -1,27 +1,65 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { sql } from '@vercel/postgres';
-import { extractClientName } from './client-parser';
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+const STOP_WORDS = new Set([
+  'inc', 'llc', 'ltd', 'corp', 'co', 'company', 'group', 'holdings',
+  'the', 'and', 'of', 'for', 'studio', 'media', 'agency',
+]);
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function hostnameBase(url: string): string {
+  return url
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '')
+    .replace(/^www\./, '')
+    .split('.')[0];
+}
+
 export async function findClientByName(question: string, conversationHistory: string = ''): Promise<number | null> {
   try {
-    let clientName = extractClientName(question);
+    const all = await sql`SELECT id, name, website_url FROM clients`;
+    if (!all.rows.length) return null;
 
-    if (!clientName && conversationHistory) {
-      clientName = extractClientName(conversationHistory);
+    const text = (question + ' ' + conversationHistory).toLowerCase();
+    const textNoSpace = text.replace(/\s+/g, '');
+
+    let best: { id: number; score: number } | null = null;
+
+    for (const row of all.rows) {
+      const name: string = (row.name as string).toLowerCase().trim();
+      const url: string = (row.website_url as string) || '';
+      const host = hostnameBase(url);
+
+      let score = 0;
+
+      const nameRe = new RegExp(`\\b${escapeRegex(name)}\\b`, 'i');
+      if (nameRe.test(text)) score += 100;
+
+      if (host.length >= 4 && textNoSpace.includes(host)) score += 90;
+
+      const words = name
+        .split(/\s+/)
+        .map((w) => w.replace(/[^a-z0-9]/g, ''))
+        .filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
+      for (const word of words) {
+        const wRe = new RegExp(`\\b${escapeRegex(word)}\\b`, 'i');
+        if (wRe.test(text)) score += 40;
+      }
+
+      if (score > 0 && (!best || score > best.score)) {
+        best = { id: row.id as number, score };
+      }
     }
 
-    if (!clientName) return null;
-
-    const result = await sql`
-      SELECT id FROM clients WHERE LOWER(name) LIKE LOWER(${'%' + clientName + '%'})
-      LIMIT 1
-    `;
-
-    return result.rows.length > 0 ? result.rows[0].id : null;
+    return best?.id ?? null;
   } catch (error) {
     console.error('Client lookup error:', error);
     return null;
