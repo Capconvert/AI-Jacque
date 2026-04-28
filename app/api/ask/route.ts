@@ -7,7 +7,8 @@ export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
-    const { question, conversationHistory, clientId: providedClientId, images: rawImages } = await request.json();
+    const { question, conversationHistory, clientId: providedClientId, images: rawImages, askerName: rawAskerName } = await request.json();
+    const askerName: string | null = typeof rawAskerName === 'string' && rawAskerName.trim() ? rawAskerName.trim() : null;
 
     const images: ImageInput[] = Array.isArray(rawImages)
       ? rawImages
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
       clientId = await findClientByName(question, history);
     }
 
-    const result = await askAIJacque(clientId, question || '', history, images);
+    const result = await askAIJacque(clientId, question || '', history, images, askerName);
 
     if ('error' in result) {
       return NextResponse.json(result, { status: 400 });

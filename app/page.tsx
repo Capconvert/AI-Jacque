@@ -21,6 +21,7 @@ interface Chat {
   messages: Message[];
   timestamp: number;
   clientId: number | null;
+  askerName: string;
 }
 
 interface ClientOption {
@@ -118,6 +119,7 @@ export default function Home() {
       messages: [],
       timestamp: Date.now(),
       clientId: null,
+      askerName: '',
     };
     setChats((prev) => [newChat, ...prev]);
     setSelectedChatId(newChat.id);
@@ -127,6 +129,12 @@ export default function Home() {
   const setChatClient = (chatId: string, clientId: number | null) => {
     setChats((prev) =>
       prev.map((chat) => (chat.id === chatId ? { ...chat, clientId } : chat))
+    );
+  };
+
+  const setChatAskerName = (chatId: string, askerName: string) => {
+    setChats((prev) =>
+      prev.map((chat) => (chat.id === chatId ? { ...chat, askerName } : chat))
     );
   };
 
@@ -231,6 +239,7 @@ export default function Home() {
           conversationHistory,
           clientId: currentChat?.clientId ?? null,
           images: apiImages,
+          askerName: currentChat?.askerName?.trim() || null,
         }),
       });
       const data = await res.json();
@@ -328,8 +337,8 @@ export default function Home() {
       >
         {selectedChatId ? (
           <>
-            {/* Chat header: client picker */}
-            <div className="border-b border-custom-darkGrey p-3 flex items-center gap-3">
+            {/* Chat header: client picker + asker name */}
+            <div className="border-b border-custom-darkGrey p-3 flex items-center gap-3 flex-wrap">
               <label className="text-custom-cyan text-xs uppercase tracking-wide">Client:</label>
               <select
                 value={currentChat?.clientId ?? ''}
@@ -346,6 +355,14 @@ export default function Home() {
                   </option>
                 ))}
               </select>
+              <label className="text-custom-cyan text-xs uppercase tracking-wide ml-2">Asked by:</label>
+              <input
+                type="text"
+                value={currentChat?.askerName ?? ''}
+                onChange={(e) => setChatAskerName(selectedChatId, e.target.value)}
+                placeholder="e.g. Katrina"
+                className="bg-custom-black border border-custom-darkGrey text-custom-cyan px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-custom-cyan w-[140px] placeholder-custom-cyan placeholder-opacity-50"
+              />
               {currentClient && (
                 <span className="text-custom-cyan opacity-60 text-xs truncate">
                   {currentClient.website_url}

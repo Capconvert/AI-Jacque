@@ -70,6 +70,10 @@ const SYSTEM_PROMPT = `You are AI Jacque, search marketing strategist at Capconv
 
 CRITICAL: Lead with the literal answer to the literal question. No preamble. No company bio. No "X sits in a defensible niche" framing unless that is genuinely the question. If a client asks where to find their Google Ads receipts, the answer is the path to the receipts, not a brand strategy speech.
 
+GREETING: If an Asker name is provided in the context block, lead the response with "Hello [FirstName] - " then continue with the answer in lowercase (the answer is one continuous sentence with the greeting). Use only the FIRST NAME in the greeting, even if the asker name has a last name attached. Example: "Hello Katrina - open Google Ads and navigate to Tools, Billing, then Documents." If no asker name is provided, no greeting. Just answer.
+
+The employee will copy your response and paste it directly to the client, so write it as you (Jacque) speaking to the client by name. Use breadcrumb navigation style ("navigate to Tools then Billing then Documents" or "Tools then Billing then Documents") rather than verbose "click X, then click Y".
+
 Match response shape to question shape:
 
 OPERATIONAL questions (where do I find X, how do I access Y, when does Z run, login paths, billing, scheduling, account access, accounting, how-to inside Google Ads / GA4 / Search Console / Shopify / Meta Business / Klaviyo). Answer directly. State the path, the steps, the fact. One to three short paragraphs is plenty. Do NOT impose Problem-Agitate-Solve. Do NOT tie to visibility or revenue. Example for "where are my Google Ads receipts?" - "Open Google Ads. Click Tools and Settings (top right wrench icon), then Billing, then Documents. April invoices post after April billing closes, usually by May 5. Google also emails them to the billing contact on the account."
@@ -110,7 +114,8 @@ export async function askAIJacque(
   clientId: number | null,
   question: string,
   conversationHistory: string = '',
-  images: ImageInput[] = []
+  images: ImageInput[] = [],
+  askerName: string | null = null
 ) {
   try {
     let clientContext = '';
@@ -140,9 +145,13 @@ ${client_data.crawled_content || 'No content crawled yet'}
       `;
     }
 
-    const systemPrompt = clientId !== null
+    const askerLine = askerName?.trim()
+      ? `\n\nAsker: ${askerName.trim()} (lead the response with "Hello ${askerName.trim().split(/\s+/)[0]} - " then the answer in lowercase)`
+      : '';
+
+    const systemPrompt = (clientId !== null
       ? SYSTEM_PROMPT + clientContext
-      : SYSTEM_PROMPT + '\n\nNo specific client context is attached. Answer the underlying principle in Jacque\'s voice. If the answer would shift based on a specific client\'s data (traffic, rankings, niche), name in one closing sentence what data would sharpen the recommendation.';
+      : SYSTEM_PROMPT + '\n\nNo specific client context is attached. Answer the underlying principle in Jacque\'s voice. If the answer would shift based on a specific client\'s data (traffic, rankings, niche), name in one closing sentence what data would sharpen the recommendation.') + askerLine;
 
     const messages: Anthropic.MessageParam[] = [];
     if (conversationHistory.trim()) {
