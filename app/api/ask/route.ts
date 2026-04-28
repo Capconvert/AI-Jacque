@@ -1,20 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { askAIJacque, findClientByName } from '@/lib/ai-jacque';
+import { askAIJacque, findClientByName, ImageInput, ImageMediaType } from '@/lib/ai-jacque';
+
+const ALLOWED_MEDIA_TYPES: ImageMediaType[] = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
-    const { question } = await request.json();
+    const { question, conversationHistory, clientId: providedClientId, images: rawImages } = await request.json();
 
-    if (!question) {
-      return NextResponse.json({ error: 'Missing question' }, { status: 400 });
+    const images: ImageInput[] = Array.isArray(rawImages)
+      ? rawImages
+          .filter((img: unknown): img is { mediaType: string; data: string } =>
+            typeof img === 'object' && img !== null
+              && typeof (img as { mediaType: unknown }).mediaType === 'string'
+              && typeof (img as { data: unknown }).data === 'string'
+          )
+          .filter((img) => ALLOWED_MEDIA_TYPES.includes(img.mediaType as ImageMediaType))
+          .map((img) => ({ mediaType: img.mediaType as ImageMediaType, data: img.data }))
+      : [];
+
+    if (!question && images.length === 0) {
+      return NextResponse.json({ error: 'Missing question or image' }, { status: 400 });
     }
 
-    const clientId = await findClientByName(question);
-    if (!clientId) {
-      return NextResponse.json({ error: 'Could not identify client from question. Please mention the client name.' }, { status: 400 });
+    const history = conversationHistory || '';
+
+    let clientId: number | null = null;
+    if (typeof providedClientId === 'number' && providedClientId > 0) {
+      clientId = providedClientId;
+    } else if (question) {
+      clientId = await findClientByName(question, history);
     }
 
-    const result = await askAIJacque(clientId, question);
+    const result = await askAIJacque(clientId, question || '', history, images);
 
     if ('error' in result) {
       return NextResponse.json(result, { status: 400 });

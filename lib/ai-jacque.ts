@@ -6,9 +6,14 @@ const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-export async function findClientByName(question: string): Promise<number | null> {
+export async function findClientByName(question: string, conversationHistory: string = ''): Promise<number | null> {
   try {
-    const clientName = extractClientName(question);
+    let clientName = extractClientName(question);
+
+    if (!clientName && conversationHistory) {
+      clientName = extractClientName(conversationHistory);
+    }
+
     if (!clientName) return null;
 
     const result = await sql`
@@ -23,43 +28,69 @@ export async function findClientByName(question: string): Promise<number | null>
   }
 }
 
-const SYSTEM_PROMPT = `You are AI Jacque, a search marketing strategist answering client questions.
+const SYSTEM_PROMPT = `You are AI Jacque, search marketing strategist at Capconvert. Capconvert employees paste questions their clients asked, and you answer as Jacque would. The employee will then forward your answer to the client.
 
-Your Voice:
-- Write short declaratives. Target 8–15 words per sentence.
-- Use Chain Logic: the last key term of one sentence opens the next. Build forward momentum.
-- No hedging. Remove: maybe, might, perhaps, probably, could potentially, in my opinion.
-- Bold load-bearing nouns only — the terms that carry the argument.
-- Direct recommendations. Confident claims. Specific numbers.
-- Lead with the point. No preamble.
+CRITICAL: Lead with the literal answer to the literal question. No preamble. No company bio. No "X sits in a defensible niche" framing unless that is genuinely the question. If a client asks where to find their Google Ads receipts, the answer is the path to the receipts, not a brand strategy speech.
 
-Response Structure (PAS):
-1. Problem: name it plainly.
-2. Agitate: show what it costs. Numbers, examples, specifics.
-3. Solve: the recommendation. Short, actionable.
+Match response shape to question shape:
 
-Company Context:
-We specialize in **Search & AI Engine Optimization**. Services: **SEO, GEO** (organic), **PPC Management** (paid), **AEO** (combined). Platforms: Google, ChatGPT, Bing, Amazon, DuckDuckGo, Brave, Yahoo, Claude, Perplexity, Gemini.
+OPERATIONAL questions (where do I find X, how do I access Y, when does Z run, login paths, billing, scheduling, account access, accounting, how-to inside Google Ads / GA4 / Search Console / Shopify / Meta Business / Klaviyo). Answer directly. State the path, the steps, the fact. One to three short paragraphs is plenty. Do NOT impose Problem-Agitate-Solve. Do NOT tie to visibility or revenue. Example for "where are my Google Ads receipts?" - "Open Google Ads. Click Tools and Settings (top right wrench icon), then Billing, then Documents. April invoices post after April billing closes, usually by May 5. Google also emails them to the billing contact on the account."
 
-Always:
-- Tie recommendations back to **visibility** and **revenue**.
-- Be specific to the client's business.
-- Avoid decorative language or humor in client-facing responses.
-- When unsure about specifics, ask or admit the gap rather than inventing.`;
+STRATEGY or RECOMMENDATION questions (should we, why is, what would you do, how do we grow, what's wrong with our X). Use Problem, Agitate, Solve. Tie back to visibility and revenue.
 
-export async function askAIJacque(clientId: number, question: string) {
+DIAGNOSTIC questions (audit this, what's broken, why is traffic down). Lead with the diagnosis. Then the fix order.
+
+When the question type is unclear, default to the direct answer. Offer to dig into strategy at the end if useful.
+
+Voice (every answer):
+- Short declaratives. 8 to 15 words per sentence.
+- Chain logic when explaining a sequence: end one sentence on the term that opens the next.
+- No hedging. Drop: maybe, might, perhaps, probably, in my opinion, could potentially.
+- Emphasize load-bearing nouns by CAPITALIZING them. Do NOT use markdown bold (**text**) or italic (*text*). The reader cannot see markdown rendering.
+- Use only the plain ASCII hyphen character. NEVER use em dashes. NEVER use en dashes.
+- Confident, specific. Real numbers when known.
+
+Capconvert services: SEO, GEO (AI-engine organic), PPC Management, AEO (combined). Platforms covered: Google, ChatGPT, Perplexity, Claude, Gemini, Bing, Amazon, DuckDuckGo, Brave, Yahoo. Mention these only when the question is about positioning, services, or strategy.
+
+When unsure of specifics: ask a clarifying question or admit the gap. Do not invent.`;
+
+function sanitizeJacqueVoice(text: string): string {
+  return text
+    .replace(/—/g, '-')
+    .replace(/–/g, '-')
+    .replace(/\*\*([^*\n]+)\*\*/g, (_, inner: string) => inner.toUpperCase())
+    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '$1');
+}
+
+export type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+export interface ImageInput {
+  mediaType: ImageMediaType;
+  data: string;
+}
+
+export async function askAIJacque(
+  clientId: number | null,
+  question: string,
+  conversationHistory: string = '',
+  images: ImageInput[] = []
+) {
   try {
-    // Get client info, summary, and crawled content
-    const clientResult = await sql`
-      SELECT id, name, website_url, summary, crawled_content FROM clients WHERE id = ${clientId}
-    `;
+    let clientContext = '';
+    let clientName: string | null = null;
 
-    if (!clientResult.rows.length) {
-      return { error: 'Client not found' };
-    }
+    if (clientId !== null) {
+      const clientResult = await sql`
+        SELECT id, name, website_url, summary, crawled_content FROM clients WHERE id = ${clientId}
+      `;
 
-    const client_data = clientResult.rows[0];
-    const clientContext = `
+      if (!clientResult.rows.length) {
+        return { error: 'Client not found' };
+      }
+
+      const client_data = clientResult.rows[0];
+      clientName = client_data.name;
+      clientContext = `
+
 Client: ${client_data.name}
 Website: ${client_data.website_url}
 
@@ -68,29 +99,51 @@ ${client_data.summary || 'No summary available'}
 
 Detailed Website Content:
 ${client_data.crawled_content || 'No content crawled yet'}
-    `;
+      `;
+    }
+
+    const systemPrompt = clientId !== null
+      ? SYSTEM_PROMPT + clientContext
+      : SYSTEM_PROMPT + '\n\nNo specific client context is attached. Answer the underlying principle in Jacque\'s voice. If the answer would shift based on a specific client\'s data (traffic, rankings, niche), name in one closing sentence what data would sharpen the recommendation.';
+
+    const messages: Anthropic.MessageParam[] = [];
+    if (conversationHistory.trim()) {
+      messages.push({ role: 'user', content: `Prior conversation context:\n${conversationHistory}` });
+      messages.push({ role: 'assistant', content: 'Understood. Continuing.' });
+    }
+
+    if (images.length > 0) {
+      const content: Anthropic.ContentBlockParam[] = images.map((img) => ({
+        type: 'image' as const,
+        source: { type: 'base64' as const, media_type: img.mediaType, data: img.data },
+      }));
+      content.push({ type: 'text', text: question || '(screenshot attached, no text)' });
+      messages.push({ role: 'user', content });
+    } else {
+      messages.push({ role: 'user', content: question });
+    }
 
     const response = await client.messages.create({
       model: 'claude-opus-4-7',
       max_tokens: 1024,
-      system: SYSTEM_PROMPT + '\n\n' + clientContext,
-      messages: [
-        {
-          role: 'user',
-          content: question,
-        },
-      ],
+      system: systemPrompt,
+      messages,
     });
 
-    const answer = response.content[0].type === 'text' ? response.content[0].text : 'No response';
+    const rawAnswer = response.content[0].type === 'text' ? response.content[0].text : 'No response';
+    const answer = sanitizeJacqueVoice(rawAnswer);
 
-    // Store conversation
-    await sql`
-      INSERT INTO conversations (client_id, question, answer)
-      VALUES (${clientId}, ${question}, ${answer})
-    `;
+    if (clientId !== null) {
+      const questionForLog = images.length > 0
+        ? `${question}${question ? '\n' : ''}[${images.length} screenshot${images.length === 1 ? '' : 's'} attached]`
+        : question;
+      await sql`
+        INSERT INTO conversations (client_id, question, answer)
+        VALUES (${clientId}, ${questionForLog}, ${answer})
+      `;
+    }
 
-    return { success: true, answer, client_name: client_data.name };
+    return { success: true, answer, client_name: clientName };
   } catch (error) {
     console.error('AI error:', error);
     return { error: String(error) };
