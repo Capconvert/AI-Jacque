@@ -88,8 +88,12 @@ export default function Home() {
   const [clientsLoading, setClientsLoading] = useState(true);
   const [pendingImages, setPendingImages] = useState<AttachedImage[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [clientQuery, setClientQuery] = useState('');
+  const [clientOpen, setClientOpen] = useState(false);
+  const [clientHighlight, setClientHighlight] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const clientBoxRef = useRef<HTMLDivElement>(null);
   const dragCounter = useRef(0);
 
   const currentChat = chats.find((c) => c.id === selectedChatId);
@@ -111,6 +115,22 @@ export default function Home() {
       .catch(() => {})
       .finally(() => setClientsLoading(false));
   }, []);
+
+  useEffect(() => {
+    setClientQuery(currentClient?.name ?? '');
+    setClientOpen(false);
+  }, [selectedChatId, currentClient?.name]);
+
+  useEffect(() => {
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (clientBoxRef.current && !clientBoxRef.current.contains(e.target as Node)) {
+        setClientOpen(false);
+        setClientQuery(currentClient?.name ?? '');
+      }
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    return () => document.removeEventListener('mousedown', onDocMouseDown);
+  }, [currentClient?.name]);
 
   const createNewChat = () => {
     const newChat: Chat = {
@@ -136,6 +156,20 @@ export default function Home() {
     setChats((prev) =>
       prev.map((chat) => (chat.id === chatId ? { ...chat, askerName } : chat))
     );
+  };
+
+  const filteredClients = clientQuery.trim()
+    ? clients.filter((c) =>
+        c.name.toLowerCase().includes(clientQuery.trim().toLowerCase())
+      )
+    : clients;
+
+  const pickClient = (id: number | null, name: string) => {
+    if (!selectedChatId) return;
+    setChatClient(selectedChatId, id);
+    setClientQuery(name);
+    setClientOpen(false);
+    setClientHighlight(0);
   };
 
   const addFiles = async (files: FileList | File[]) => {
@@ -340,21 +374,82 @@ export default function Home() {
             {/* Chat header: client picker + asker name */}
             <div className="border-b border-custom-darkGrey p-3 flex items-center gap-3 flex-wrap">
               <label className="text-custom-muted text-[10px] font-semibold uppercase tracking-wider">Client</label>
-              <select
-                value={currentChat?.clientId ?? ''}
-                onChange={(e) =>
-                  setChatClient(selectedChatId, e.target.value ? Number(e.target.value) : null)
-                }
-                disabled={clientsLoading}
-                className="bg-custom-card border border-custom-darkGrey text-custom-white px-3 py-2 text-xs rounded-md focus:outline-none focus:ring-1 focus:ring-custom-cyan min-w-[200px]"
-              >
-                <option value="">{clientsLoading ? 'Loading clients...' : 'General (no client)'}</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              <div ref={clientBoxRef} className="relative w-[240px]">
+                <input
+                  type="text"
+                  value={clientQuery}
+                  onChange={(e) => {
+                    setClientQuery(e.target.value);
+                    setClientOpen(true);
+                    setClientHighlight(0);
+                  }}
+                  onFocus={(e) => {
+                    setClientOpen(true);
+                    setClientHighlight(0);
+                    e.currentTarget.select();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setClientOpen(false);
+                      setClientQuery(currentClient?.name ?? '');
+                      e.currentTarget.blur();
+                    } else if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      setClientOpen(true);
+                      setClientHighlight((h) =>
+                        Math.min(h + 1, filteredClients.length - 1)
+                      );
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setClientHighlight((h) => Math.max(h - 1, 0));
+                    } else if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const c = filteredClients[clientHighlight];
+                      if (c) pickClient(c.id, c.name);
+                    }
+                  }}
+                  placeholder={clientsLoading ? 'Loading clients...' : 'Search clients or pick General'}
+                  disabled={clientsLoading}
+                  className="w-full bg-custom-card border border-custom-darkGrey text-custom-white px-3 py-2 text-xs rounded-md focus:outline-none focus:ring-1 focus:ring-custom-cyan"
+                />
+                {clientOpen && !clientsLoading && (
+                  <div className="absolute z-20 mt-1 w-full max-h-72 overflow-y-auto bg-custom-card border border-custom-darkGrey rounded-md shadow-lg">
+                    <button
+                      type="button"
+                      onClick={() => pickClient(null, '')}
+                      className={`w-full text-left px-3 py-2 text-xs ${
+                        currentChat?.clientId == null
+                          ? 'text-custom-cyan font-semibold'
+                          : 'text-custom-muted hover:bg-custom-hover'
+                      }`}
+                    >
+                      General (no client)
+                    </button>
+                    {filteredClients.map((c, i) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => pickClient(c.id, c.name)}
+                        onMouseEnter={() => setClientHighlight(i)}
+                        className={`w-full text-left px-3 py-2 text-xs ${
+                          i === clientHighlight ? 'bg-custom-hover' : ''
+                        } ${
+                          currentChat?.clientId === c.id
+                            ? 'text-custom-cyan font-semibold'
+                            : 'text-custom-white'
+                        }`}
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                    {filteredClients.length === 0 && (
+                      <div className="px-3 py-2 text-xs text-custom-muted">
+                        No clients match
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
               <label className="text-custom-muted text-[10px] font-semibold uppercase tracking-wider ml-2">Asked by</label>
               <input
                 type="text"
