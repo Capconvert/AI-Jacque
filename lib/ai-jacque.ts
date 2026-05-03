@@ -149,9 +149,16 @@ ${client_data.crawled_content || 'No content crawled yet'}
       ? `\n\nAsker: ${askerName.trim()} (lead the response with "Hello ${askerName.trim().split(/\s+/)[0]} - " then the answer in lowercase)`
       : '';
 
-    const systemPrompt = (clientId !== null
+    const cachedSystem = clientId !== null
       ? SYSTEM_PROMPT + clientContext
-      : SYSTEM_PROMPT + '\n\nNo specific client context is attached. Answer the underlying principle in Jacque\'s voice. If the answer would shift based on a specific client\'s data (traffic, rankings, niche), name in one closing sentence what data would sharpen the recommendation.') + askerLine;
+      : SYSTEM_PROMPT + '\n\nNo specific client context is attached. Answer the underlying principle in Jacque\'s voice. If the answer would shift based on a specific client\'s data (traffic, rankings, niche), name in one closing sentence what data would sharpen the recommendation.';
+
+    const systemBlocks: Anthropic.TextBlockParam[] = [
+      { type: 'text', text: cachedSystem, cache_control: { type: 'ephemeral' } },
+    ];
+    if (askerLine) {
+      systemBlocks.push({ type: 'text', text: askerLine });
+    }
 
     const messages: Anthropic.MessageParam[] = [];
     if (conversationHistory.trim()) {
@@ -172,13 +179,25 @@ ${client_data.crawled_content || 'No content crawled yet'}
 
     const response = await client.messages.create({
       model: 'claude-opus-4-7',
-      max_tokens: 1024,
-      system: systemPrompt,
+      max_tokens: 16000,
+      thinking: { type: 'adaptive' },
+      output_config: { effort: 'max' },
+      system: systemBlocks,
       messages,
     });
 
-    const rawAnswer = response.content[0].type === 'text' ? response.content[0].text : 'No response';
+    const textBlock = response.content.find((b): b is Anthropic.TextBlock => b.type === 'text');
+    const rawAnswer = textBlock?.text ?? 'No response';
     const answer = sanitizeJacqueVoice(rawAnswer);
+
+    if (response.usage) {
+      console.log('[ai-jacque] tokens', {
+        input: response.usage.input_tokens,
+        cache_read: response.usage.cache_read_input_tokens,
+        cache_creation: response.usage.cache_creation_input_tokens,
+        output: response.usage.output_tokens,
+      });
+    }
 
     if (clientId !== null) {
       const questionForLog = images.length > 0
