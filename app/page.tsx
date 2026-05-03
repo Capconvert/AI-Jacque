@@ -79,6 +79,32 @@ async function processImage(file: File): Promise<AttachedImage | null> {
   return { dataUrl: outUrl, mediaType: outType };
 }
 
+function summarizeQuestion(question: string): string {
+  const cleaned = question.trim().replace(/\s+/g, ' ');
+  if (!cleaned) return '';
+  const firstSentence = cleaned.split(/[.?!]\s+/)[0];
+  const max = 40;
+  if (firstSentence.length <= max) return firstSentence;
+  const truncated = firstSentence.slice(0, max);
+  const lastSpace = truncated.lastIndexOf(' ');
+  const cut = lastSpace > 20 ? truncated.slice(0, lastSpace) : truncated;
+  return cut + '...';
+}
+
+function buildChatTitle(
+  clientName: string | null,
+  question: string,
+  imageCount: number
+): string {
+  const summary = question.trim()
+    ? summarizeQuestion(question)
+    : imageCount > 0
+    ? `Screenshot${imageCount > 1 ? `s (${imageCount})` : ''}`
+    : '';
+  if (!summary) return clientName ?? 'New chat';
+  return clientName ? `${clientName} - ${summary}` : summary;
+}
+
 export default function Home() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
@@ -91,6 +117,8 @@ export default function Home() {
   const [clientQuery, setClientQuery] = useState('');
   const [clientOpen, setClientOpen] = useState(false);
   const [clientHighlight, setClientHighlight] = useState(0);
+  const [editingChatId, setEditingChatId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const clientBoxRef = useRef<HTMLDivElement>(null);
@@ -156,6 +184,30 @@ export default function Home() {
     setChats((prev) =>
       prev.map((chat) => (chat.id === chatId ? { ...chat, askerName } : chat))
     );
+  };
+
+  const renameChat = (chatId: string, title: string) => {
+    setChats((prev) =>
+      prev.map((chat) => (chat.id === chatId ? { ...chat, title } : chat))
+    );
+  };
+
+  const startEditingChat = (chatId: string, currentTitle: string) => {
+    setEditingChatId(chatId);
+    setEditingTitle(currentTitle);
+  };
+
+  const commitChatRename = () => {
+    if (editingChatId === null) return;
+    const next = editingTitle.trim() || 'Untitled';
+    renameChat(editingChatId, next);
+    setEditingChatId(null);
+    setEditingTitle('');
+  };
+
+  const cancelChatRename = () => {
+    setEditingChatId(null);
+    setEditingTitle('');
   };
 
   const filteredClients = clientQuery.trim()
@@ -287,9 +339,12 @@ export default function Home() {
                 messages: [...chat.messages, { role: 'assistant', content: assistantMessage }],
                 title: (() => {
                   if (chat.title !== 'New chat') return chat.title;
-                  if (userMessage) return userMessage.slice(0, 30) + (userMessage.length > 30 ? '...' : '');
-                  if (sentImages.length) return `Screenshot (${sentImages.length})`;
-                  return 'New chat';
+                  const resolvedClientName = chat.clientId
+                    ? clients.find((c) => c.id === chat.clientId)?.name ?? null
+                    : typeof data.client_name === 'string'
+                    ? data.client_name
+                    : null;
+                  return buildChatTitle(resolvedClientName, userMessage, sentImages.length);
                 })(),
                 clientId:
                   chat.clientId ??
@@ -343,19 +398,43 @@ export default function Home() {
             </div>
           ) : (
             <div className="space-y-1 p-2">
-              {chats.map((chat) => (
-                <button
-                  key={chat.id}
-                  onClick={() => setSelectedChatId(chat.id)}
-                  className={`w-full text-left px-3 py-2 text-xs rounded-md ${
-                    selectedChatId === chat.id
-                      ? 'bg-custom-cyan text-custom-black font-semibold'
-                      : 'text-custom-white hover:bg-custom-card'
-                  }`}
-                >
-                  <p className="truncate">{chat.title}</p>
-                </button>
-              ))}
+              {chats.map((chat) =>
+                editingChatId === chat.id ? (
+                  <input
+                    key={chat.id}
+                    type="text"
+                    autoFocus
+                    value={editingTitle}
+                    onChange={(e) => setEditingTitle(e.target.value)}
+                    onBlur={commitChatRename}
+                    onFocus={(e) => e.currentTarget.select()}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        commitChatRename();
+                      } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        cancelChatRename();
+                      }
+                    }}
+                    className="w-full bg-custom-card border border-custom-cyan text-custom-white px-3 py-2 text-xs rounded-md focus:outline-none focus:ring-1 focus:ring-custom-cyan"
+                  />
+                ) : (
+                  <button
+                    key={chat.id}
+                    onClick={() => setSelectedChatId(chat.id)}
+                    onDoubleClick={() => startEditingChat(chat.id, chat.title)}
+                    title="Double-click to rename"
+                    className={`w-full text-left px-3 py-2 text-xs rounded-md ${
+                      selectedChatId === chat.id
+                        ? 'bg-custom-cyan text-custom-black font-semibold'
+                        : 'text-custom-white hover:bg-custom-card'
+                    }`}
+                  >
+                    <p className="truncate">{chat.title}</p>
+                  </button>
+                )
+              )}
             </div>
           )}
         </div>
