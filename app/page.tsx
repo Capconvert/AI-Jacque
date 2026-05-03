@@ -123,6 +123,7 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const clientBoxRef = useRef<HTMLDivElement>(null);
   const dragCounter = useRef(0);
+  const skipFirstPersist = useRef(true);
 
   const currentChat = chats.find((c) => c.id === selectedChatId);
   const messages = currentChat?.messages || [];
@@ -143,6 +144,41 @@ export default function Home() {
       .catch(() => {})
       .finally(() => setClientsLoading(false));
   }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('ai-jacque:state');
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { chats?: Chat[]; selectedChatId?: string | null };
+      if (Array.isArray(parsed.chats)) {
+        setChats(parsed.chats);
+        if (
+          typeof parsed.selectedChatId === 'string' &&
+          parsed.chats.some((c) => c.id === parsed.selectedChatId)
+        ) {
+          setSelectedChatId(parsed.selectedChatId);
+        }
+      }
+    } catch {
+      // Corrupt storage - ignore and start fresh
+    }
+  }, []);
+
+  useEffect(() => {
+    if (skipFirstPersist.current) {
+      skipFirstPersist.current = false;
+      return;
+    }
+    try {
+      localStorage.setItem(
+        'ai-jacque:state',
+        JSON.stringify({ chats, selectedChatId })
+      );
+    } catch (err) {
+      // Quota exceeded or storage disabled - log but keep working
+      console.warn('[ai-jacque] failed to persist chat state:', err);
+    }
+  }, [chats, selectedChatId]);
 
   useEffect(() => {
     setClientQuery(currentClient?.name ?? '');
