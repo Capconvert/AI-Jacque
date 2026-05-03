@@ -289,13 +289,13 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-custom-black flex font-mono">
+    <main className="min-h-screen bg-custom-black flex">
       {/* Sidebar */}
       <div className="w-64 bg-custom-black border-r border-custom-darkGrey flex flex-col">
         <div className="p-4 border-b border-custom-darkGrey">
           <button
             onClick={createNewChat}
-            className="w-full px-3 py-2 bg-custom-cyan text-custom-black hover:opacity-90 font-medium text-xs"
+            className="w-full px-3 py-2 rounded-md bg-custom-cyan text-custom-black hover:opacity-90 font-semibold text-xs"
           >
             + New chat
           </button>
@@ -304,7 +304,7 @@ export default function Home() {
         {/* Chat List */}
         <div className="flex-1 overflow-y-auto">
           {chats.length === 0 ? (
-            <div className="p-4 text-custom-cyan text-xs text-center">
+            <div className="p-4 text-custom-muted text-xs text-center">
               No chats yet
             </div>
           ) : (
@@ -313,10 +313,10 @@ export default function Home() {
                 <button
                   key={chat.id}
                   onClick={() => setSelectedChatId(chat.id)}
-                  className={`w-full text-left px-3 py-2 text-xs rounded ${
+                  className={`w-full text-left px-3 py-2 text-xs rounded-md ${
                     selectedChatId === chat.id
-                      ? 'bg-custom-cyan text-custom-black'
-                      : 'text-custom-cyan hover:bg-custom-darkGrey'
+                      ? 'bg-custom-cyan text-custom-black font-semibold'
+                      : 'text-custom-white hover:bg-custom-card'
                   }`}
                 >
                   <p className="truncate">{chat.title}</p>
@@ -339,14 +339,14 @@ export default function Home() {
           <>
             {/* Chat header: client picker + asker name */}
             <div className="border-b border-custom-darkGrey p-3 flex items-center gap-3 flex-wrap">
-              <label className="text-custom-cyan text-xs uppercase tracking-wide">Client:</label>
+              <label className="text-custom-muted text-[10px] font-semibold uppercase tracking-wider">Client</label>
               <select
                 value={currentChat?.clientId ?? ''}
                 onChange={(e) =>
                   setChatClient(selectedChatId, e.target.value ? Number(e.target.value) : null)
                 }
                 disabled={clientsLoading}
-                className="bg-custom-black border border-custom-darkGrey text-custom-cyan px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-custom-cyan min-w-[200px]"
+                className="bg-custom-card border border-custom-darkGrey text-custom-white px-3 py-2 text-xs rounded-md focus:outline-none focus:ring-1 focus:ring-custom-cyan min-w-[200px]"
               >
                 <option value="">{clientsLoading ? 'Loading clients...' : 'General (no client)'}</option>
                 {clients.map((c) => (
@@ -355,16 +355,16 @@ export default function Home() {
                   </option>
                 ))}
               </select>
-              <label className="text-custom-cyan text-xs uppercase tracking-wide ml-2">Asked by:</label>
+              <label className="text-custom-muted text-[10px] font-semibold uppercase tracking-wider ml-2">Asked by</label>
               <input
                 type="text"
                 value={currentChat?.askerName ?? ''}
                 onChange={(e) => setChatAskerName(selectedChatId, e.target.value)}
                 placeholder="e.g. Katrina"
-                className="bg-custom-black border border-custom-darkGrey text-custom-cyan px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-custom-cyan w-[140px] placeholder-custom-cyan placeholder-opacity-50"
+                className="bg-custom-card border border-custom-darkGrey text-custom-white px-3 py-2 text-xs rounded-md focus:outline-none focus:ring-1 focus:ring-custom-cyan w-[140px]"
               />
               {currentClient && (
-                <span className="text-custom-cyan opacity-60 text-xs truncate">
+                <span className="text-custom-muted text-xs truncate">
                   {currentClient.website_url}
                 </span>
               )}
@@ -373,13 +373,13 @@ export default function Home() {
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {messages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-custom-cyan gap-2">
-                  <p>
+                <div className="h-full flex flex-col items-center justify-center gap-2 text-center">
+                  <p className="text-custom-white text-base">
                     {currentClient
                       ? `Ask Jacque about ${currentClient.name}...`
                       : 'Pick a client above, or ask a general question.'}
                   </p>
-                  <p className="text-xs opacity-60">Paste, drag, or attach a screenshot.</p>
+                  <p className="text-custom-muted text-xs">Paste, drag, or attach a screenshot.</p>
                 </div>
               ) : (
                 <>
@@ -388,7 +388,11 @@ export default function Home() {
                       key={idx}
                       className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
-                      <div className="max-w-2xl px-4 py-2 text-custom-cyan">
+                      <div className={`max-w-2xl px-4 py-3 rounded-lg text-sm leading-relaxed ${
+                        msg.role === 'user'
+                          ? 'bg-custom-card text-custom-white'
+                          : 'text-custom-white'
+                      }`}>
                         {msg.images && msg.images.length > 0 && (
                           <div className={`flex flex-wrap gap-2 mb-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                             {msg.images.map((img, i) => (
@@ -397,7 +401,7 @@ export default function Home() {
                                 href={img.dataUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="block border border-custom-darkGrey hover:border-custom-cyan"
+                                className="block rounded-md overflow-hidden border border-custom-darkGrey hover:border-custom-cyan"
                               >
                                 <img
                                   src={img.dataUrl}
@@ -409,14 +413,14 @@ export default function Home() {
                           </div>
                         )}
                         {msg.content && (
-                          <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                          <p className="whitespace-pre-wrap">{msg.content}</p>
                         )}
                       </div>
                     </div>
                   ))}
                   {loading && (
                     <div className="flex justify-start">
-                      <div className="text-custom-cyan text-sm">
+                      <div className="text-custom-cyan text-sm px-4 py-3">
                         <p>Thinking...</p>
                       </div>
                     </div>
@@ -435,11 +439,11 @@ export default function Home() {
                       <img
                         src={img.dataUrl}
                         alt={`pending ${i + 1}`}
-                        className="h-16 w-16 object-cover border border-custom-darkGrey"
+                        className="h-16 w-16 object-cover rounded-md border border-custom-darkGrey"
                       />
                       <button
                         onClick={() => removePendingImage(i)}
-                        className="absolute -top-1 -right-1 bg-custom-cyan text-custom-black w-4 h-4 text-xs leading-none flex items-center justify-center font-bold"
+                        className="absolute -top-1 -right-1 bg-custom-cyan text-custom-black w-4 h-4 text-xs leading-none flex items-center justify-center font-bold rounded-full"
                         title="Remove"
                       >
                         x
@@ -459,7 +463,7 @@ export default function Home() {
                       ? `Paste the question ${currentClient.name} asked... (Cmd+V to paste a screenshot)`
                       : "Paste the client's question or screenshot... (Cmd+V works)"
                   }
-                  className="flex-1 bg-custom-black border border-custom-darkGrey text-custom-cyan px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-custom-cyan placeholder-custom-cyan placeholder-opacity-50"
+                  className="flex-1 bg-custom-card border border-custom-darkGrey text-custom-white px-3 py-2 text-sm rounded-md resize-none focus:outline-none focus:ring-1 focus:ring-custom-cyan"
                   rows={3}
                 />
                 <input
@@ -477,14 +481,14 @@ export default function Home() {
                   onClick={() => fileInputRef.current?.click()}
                   disabled={loading}
                   title="Attach screenshot"
-                  className="px-3 py-2 border border-custom-darkGrey text-custom-cyan hover:bg-custom-darkGrey disabled:opacity-50 text-sm"
+                  className="px-4 py-2 rounded-md border border-custom-darkGrey text-custom-white hover:bg-custom-card disabled:opacity-50 text-sm"
                 >
                   Attach
                 </button>
                 <button
                   onClick={handleSend}
                   disabled={loading || (!input.trim() && pendingImages.length === 0)}
-                  className="px-4 py-2 bg-custom-cyan text-custom-black hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+                  className="px-5 py-2 rounded-md bg-custom-cyan text-custom-black hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-sm"
                 >
                   Send
                 </button>
@@ -492,7 +496,7 @@ export default function Home() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-custom-cyan">
+          <div className="flex-1 flex items-center justify-center text-custom-muted">
             <p>Select or create a chat to begin</p>
           </div>
         )}

@@ -6,22 +6,38 @@
   background-color: #161616;
 }
 
+.bg-custom-card {
+  background-color: #1c1c1c;
+}
+
 .bg-custom-cyan {
   background-color: #00ceff;
 }
 
 .text-custom-black {
-  color: #000000;
+  color: #0c0c0c;
 }
 
 .text-custom-cyan {
   color: #00ceff;
 }
 
+.text-custom-white {
+  color: #f0f0f0;
+}
+
+.text-custom-muted {
+  color: #999999;
+}
+
+.text-custom-dim {
+  color: #666666;
+}
+
 .text-custom-darkGrey {
-  color: #1a1a1a;
+  color: #2a2a2a;
 }
 
 .border-custom-darkGrey {
-  border-color: #1a1a1a;
+  border-color: #2a2a2a;
 }
