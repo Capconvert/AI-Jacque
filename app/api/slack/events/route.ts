@@ -142,6 +142,18 @@ export async function POST(request: NextRequest) {
     }
 
     const eventCopy = payload.event;
+    let ackTs: string | undefined;
+    try {
+      const ack = await slackPostMessage({
+        channel: eventCopy.channel || '',
+        text: 'thinking...',
+        thread_ts: eventCopy.thread_ts || eventCopy.ts,
+      });
+      ackTs = typeof ack.ts === 'string' ? ack.ts : undefined;
+    } catch (err) {
+      console.warn('[slack-bot] ack post failed', err);
+    }
+
     try {
       await processMention(eventCopy);
       console.log('[slack-bot] processMention done', eventCopy.ts);
