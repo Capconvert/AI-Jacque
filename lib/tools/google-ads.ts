@@ -358,9 +358,124 @@ export const googleAdsKeywordPerformance: ToolDefinition = {
   },
 };
 
+export const googleAdsCampaignStatus: ToolDefinition = {
+  spec: {
+    name: 'google_ads_campaign_status',
+    description:
+      "Get the live structural state of every campaign on a client account: status (ENABLED/PAUSED/REMOVED), serving status, bidding strategy system status (LEARNING_NEW/EFFECTIVE/MISCONFIGURED/etc), optimization score, channel type, start/end dates. Use this to verify ANY claim about whether a campaign is paused, in learning phase, broken, off, etc. Do NOT trust claimed campaign state - always call this tool when someone says 'X is in learning' or 'we paused Y' or 'Z is misconfigured'. Defaults to current client.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        customer_id: { type: 'string', description: 'Override Google Ads customer ID. Defaults to current client.' },
+        include_removed: { type: 'boolean', description: 'Include REMOVED campaigns. Default false.' },
+      },
+    },
+  },
+  handler: async (input, ctx) => {
+    const customerId = pickCustomerId(input, ctx?.googleAdsCustomerId ?? null);
+    const includeRemoved = Boolean(input.include_removed);
+    const where = includeRemoved ? '' : `WHERE campaign.status != 'REMOVED'`;
+    const query = `
+      SELECT
+        campaign.id,
+        campaign.name,
+        campaign.status,
+        campaign.serving_status,
+        campaign.advertising_channel_type,
+        campaign.bidding_strategy_type,
+        campaign.bidding_strategy_system_status,
+        campaign.optimization_score,
+        campaign.start_date,
+        campaign.end_date
+      FROM campaign
+      ${where}
+      ORDER BY campaign.id
+    `.trim();
+    const rows = await adsSearch(customerId, query);
+    return {
+      customer_id: customerId,
+      campaigns: rows.map((r) => {
+        const c = r.campaign as Record<string, unknown> | undefined;
+        return {
+          id: c?.id,
+          name: c?.name,
+          status: c?.status,
+          serving_status: c?.servingStatus,
+          channel_type: c?.advertisingChannelType,
+          bidding_strategy_type: c?.biddingStrategyType,
+          bidding_strategy_system_status: c?.biddingStrategySystemStatus,
+          optimization_score: typeof c?.optimizationScore === 'number' ? Math.round((c.optimizationScore as number) * 1000) / 10 : null,
+          start_date: c?.startDate,
+          end_date: c?.endDate,
+        };
+      }),
+    };
+  },
+};
+
+export const googleAdsChangeHistory: ToolDefinition = {
+  spec: {
+    name: 'google_ads_change_history',
+    description:
+      "Get recent changes made to a client's Google Ads account: when, by whom, what was edited (campaigns, ad groups, ads, budgets, bidding strategies). Use this to verify claims like 'we paused X 4 days ago' or 'the campaign was launched yesterday' or 'someone edited the bidding strategy on Tuesday.' Returns up to the last 14 days of changes by default, capped at 100 rows. Defaults to current client.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        days: { type: 'integer', description: 'Look-back window in days. Default 14, max 30.' },
+        limit: { type: 'integer', description: 'Max rows. Default 100, max 500.' },
+        customer_id: { type: 'string', description: 'Override Google Ads customer ID. Defaults to current client.' },
+      },
+    },
+  },
+  handler: async (input, ctx) => {
+    const customerId = pickCustomerId(input, ctx?.googleAdsCustomerId ?? null);
+    const days = Math.min(Math.max(Number(input.days) || 14, 1), 30);
+    const limit = Math.min(Math.max(Number(input.limit) || 100, 1), 500);
+    const start = daysAgoISO(days);
+    const end = todayISO();
+    const query = `
+      SELECT
+        change_event.change_date_time,
+        change_event.change_resource_type,
+        change_event.client_type,
+        change_event.user_email,
+        change_event.changed_fields,
+        change_event.resource_change_operation,
+        campaign.name,
+        ad_group.name
+      FROM change_event
+      WHERE change_event.change_date_time BETWEEN '${start} 00:00:00' AND '${end} 23:59:59'
+      ORDER BY change_event.change_date_time DESC
+      LIMIT ${limit}
+    `.trim();
+    const rows = await adsSearch(customerId, query);
+    return {
+      customer_id: customerId,
+      window_days: days,
+      changes: rows.map((r) => {
+        const ce = (r as Record<string, unknown>).changeEvent as Record<string, unknown> | undefined;
+        const camp = (r as Record<string, unknown>).campaign as Record<string, unknown> | undefined;
+        const ag = (r as Record<string, unknown>).adGroup as Record<string, unknown> | undefined;
+        return {
+          when: ce?.changeDateTime,
+          resource_type: ce?.changeResourceType,
+          operation: ce?.resourceChangeOperation,
+          changed_fields: ce?.changedFields,
+          changed_by: ce?.userEmail,
+          via: ce?.clientType,
+          campaign: camp?.name,
+          ad_group: ag?.name,
+        };
+      }),
+    };
+  },
+};
+
 export const googleAdsToolDefinitions: ToolDefinition[] = [
   googleAdsAccountMetrics,
   googleAdsCampaignPerformance,
+  googleAdsCampaignStatus,
+  googleAdsChangeHistory,
   googleAdsTopSearchTerms,
   googleAdsKeywordPerformance,
 ];
