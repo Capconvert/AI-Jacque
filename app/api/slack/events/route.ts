@@ -7,6 +7,7 @@ import {
   slackUserInfo,
   pickFirstName,
   stripMentions,
+  isInternalUser,
 } from '@/lib/slack-bot';
 import { askAIJacque, findClientByName } from '@/lib/ai-jacque';
 
@@ -112,6 +113,16 @@ export async function POST(request: NextRequest) {
     }
     if (payload.event.bot_id) {
       return NextResponse.json({ ok: true });
+    }
+    if (payload.event.user) {
+      const internal = await isInternalUser(payload.event.user);
+      if (!internal) {
+        console.log('[slack-bot] ignoring mention from external user', {
+          user: payload.event.user,
+          channel: payload.event.channel,
+        });
+        return NextResponse.json({ ok: true });
+      }
     }
 
     const eventCopy = payload.event;

@@ -57,8 +57,29 @@ export async function slackThreadReplies(channel: string, threadTs: string): Pro
 
 export interface SlackUser {
   id: string;
+  team_id?: string;
+  is_bot?: boolean;
   real_name?: string;
   profile?: { real_name?: string; display_name?: string; first_name?: string };
+}
+
+let cachedBotTeamId: string | null = null;
+
+export async function getBotTeamId(): Promise<string | null> {
+  if (cachedBotTeamId) return cachedBotTeamId;
+  const r = await slackPost('auth.test', {});
+  if (r.ok && typeof r.team_id === 'string') {
+    cachedBotTeamId = r.team_id as string;
+    return cachedBotTeamId;
+  }
+  return null;
+}
+
+export async function isInternalUser(userId: string): Promise<boolean> {
+  const [user, botTeam] = await Promise.all([slackUserInfo(userId), getBotTeamId()]);
+  if (!user || !botTeam) return false;
+  if (!user.team_id) return false;
+  return user.team_id === botTeam;
 }
 
 export async function slackUserInfo(userId: string): Promise<SlackUser | null> {
