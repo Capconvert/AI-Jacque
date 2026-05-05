@@ -1,6 +1,6 @@
 import type { ToolDefinition } from './types';
 
-const ADS_API_VERSION = 'v17';
+const ADS_API_VERSION = 'v22';
 const ADS_API_BASE = `https://googleads.googleapis.com/${ADS_API_VERSION}`;
 
 interface CachedToken {
@@ -71,7 +71,7 @@ async function adsSearch(customerId: string, query: string): Promise<AdsRow[]> {
   const res = await fetch(url, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ query, pageSize: 1000 }),
+    body: JSON.stringify({ query }),
   });
   if (!res.ok) {
     throw new Error(`Google Ads search ${res.status}: ${(await res.text()).slice(0, 600)}`);
