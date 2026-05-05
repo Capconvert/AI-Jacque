@@ -12,7 +12,7 @@ import {
 import { askAIJacque, findClientByName } from '@/lib/ai-jacque';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 interface SlackEvent {
   type: string;

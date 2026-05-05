@@ -3,7 +3,7 @@ import { askAIJacque, findClientByName, ImageInput, ImageMediaType } from '@/lib
 
 const ALLOWED_MEDIA_TYPES: ImageMediaType[] = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
   try {
