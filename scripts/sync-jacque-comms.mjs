@@ -94,7 +94,7 @@ function matchClient(name, clients) {
 async function uploadOne({ filename, content, client_id, file_mtime, content_hash }) {
   if (DRY_RUN) {
     log('  [dry-run] would upload', filename, 'client_id=', client_id, 'hash=', content_hash.slice(0, 8));
-    return true;
+    return false;
   }
   const res = await fetch(API_URL, {
     method: 'POST',
