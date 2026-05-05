@@ -7,6 +7,7 @@ import {
   pickFirstName,
   stripMentions,
   getBotTeamId,
+  getBotUserId,
 } from '@/lib/slack-bot';
 import { askAIJacque, findClientByName } from '@/lib/ai-jacque';
 
@@ -15,9 +16,11 @@ export const maxDuration = 60;
 
 interface SlackEvent {
   type: string;
+  subtype?: string;
   user?: string;
   text?: string;
   channel?: string;
+  channel_type?: string;
   ts?: string;
   thread_ts?: string;
   bot_id?: string;
@@ -41,7 +44,13 @@ function alreadySeen(eventId: string): boolean {
   return false;
 }
 
-async function processMention(event: SlackEvent) {
+async function botPostedInThread(channel: string, threadTs: string, botUserId: string | null): Promise<boolean> {
+  const replies = await slackThreadReplies(channel, threadTs);
+  if (!replies.length) return false;
+  return replies.some((r) => Boolean(r.bot_id) || (botUserId && r.user === botUserId));
+}
+
+async function processQuestion(event: SlackEvent) {
   if (!event.channel || !event.text || !event.user) return;
   const question = stripMentions(event.text);
   if (!question) return;
@@ -63,9 +72,10 @@ async function processMention(event: SlackEvent) {
     history = lines.slice(-10).join('\n\n');
   }
 
+  const surface = event.channel_type === 'im' ? 'a Slack DM' : `Slack #${event.channel}`;
   const employeeContext = employeeFirstName
-    ? `Capconvert teammate ${employeeFirstName} is asking from Slack #${event.channel}. Default to INTERNAL mode unless they explicitly frame a client question.`
-    : `Capconvert teammate is asking from Slack. Default to INTERNAL mode unless they explicitly frame a client question.`;
+    ? `Capconvert teammate ${employeeFirstName} is asking from ${surface}. Default to INTERNAL mode unless they explicitly frame a client question.`
+    : `Capconvert teammate is asking from ${surface}. Default to INTERNAL mode unless they explicitly frame a client question.`;
   const questionWithContext = `${employeeContext}\n\nQuestion: ${question}`;
 
   const clientId = await findClientByName(question, history);
@@ -78,6 +88,16 @@ async function processMention(event: SlackEvent) {
     text: answer,
     thread_ts: event.thread_ts || event.ts,
   });
+}
+
+async function isInternal(userId: string): Promise<boolean> {
+  try {
+    const [user, botTeam] = await Promise.all([slackUserInfo(userId), getBotTeamId()]);
+    if (!user || !botTeam || !user.team_id) return true;
+    return user.team_id === botTeam;
+  } catch {
+    return true;
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -106,69 +126,72 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ challenge: payload.challenge });
   }
 
-  if (payload.type === 'event_callback' && payload.event?.type === 'app_mention') {
-    console.log('[slack-bot] received app_mention', {
-      event_id: payload.event_id,
-      user: payload.event.user,
-      channel: payload.event.channel,
-      ts: payload.event.ts,
-      thread_ts: payload.event.thread_ts,
-    });
-
-    if (payload.event_id && alreadySeen(payload.event_id)) {
-      console.log('[slack-bot] duplicate event_id, skipping');
-      return NextResponse.json({ ok: true });
-    }
-    if (payload.event.bot_id) {
-      console.log('[slack-bot] ignoring bot mention');
-      return NextResponse.json({ ok: true });
-    }
-
-    if (payload.event.user) {
-      try {
-        const [user, botTeam] = await Promise.all([
-          slackUserInfo(payload.event.user),
-          getBotTeamId(),
-        ]);
-        const userTeam = user?.team_id;
-        console.log('[slack-bot] team check', { userTeam, botTeam });
-        if (userTeam && botTeam && userTeam !== botTeam) {
-          console.log('[slack-bot] external user, ignoring');
-          return NextResponse.json({ ok: true });
-        }
-      } catch (err) {
-        console.warn('[slack-bot] team check failed, allowing through', err);
-      }
-    }
-
-    const eventCopy = payload.event;
-    let ackTs: string | undefined;
-    try {
-      const ack = await slackPostMessage({
-        channel: eventCopy.channel || '',
-        text: 'thinking...',
-        thread_ts: eventCopy.thread_ts || eventCopy.ts,
-      });
-      ackTs = typeof ack.ts === 'string' ? ack.ts : undefined;
-    } catch (err) {
-      console.warn('[slack-bot] ack post failed', err);
-    }
-
-    try {
-      await processMention(eventCopy);
-      console.log('[slack-bot] processMention done', eventCopy.ts);
-    } catch (err) {
-      console.error('[slack-bot] processMention failed', err);
-      if (eventCopy.channel) {
-        await slackPostMessage({
-          channel: eventCopy.channel,
-          text: `Hit an error processing that: ${err instanceof Error ? err.message : String(err)}`,
-          thread_ts: eventCopy.thread_ts || eventCopy.ts,
-        }).catch(() => {});
-      }
-    }
-
+  if (payload.type !== 'event_callback' || !payload.event) {
     return NextResponse.json({ ok: true });
+  }
+
+  const event = payload.event;
+
+  if (payload.event_id && alreadySeen(payload.event_id)) {
+    return NextResponse.json({ ok: true });
+  }
+  if (event.bot_id) {
+    return NextResponse.json({ ok: true });
+  }
+  if (event.subtype) {
+    // ignore message_changed, message_deleted, channel_join, etc.
+    return NextResponse.json({ ok: true });
+  }
+  if (!event.user || !event.text || !event.channel) {
+    return NextResponse.json({ ok: true });
+  }
+  if (!(await isInternal(event.user))) {
+    return NextResponse.json({ ok: true });
+  }
+
+  let shouldRespond = false;
+
+  if (event.type === 'app_mention') {
+    shouldRespond = true;
+  } else if (event.type === 'message') {
+    const botUserId = await getBotUserId();
+    // Skip if @mention (app_mention will fire separately)
+    if (botUserId && event.text.includes(`<@${botUserId}>`)) {
+      return NextResponse.json({ ok: true });
+    }
+    if (event.channel_type === 'im') {
+      shouldRespond = true;
+    } else if (event.thread_ts && event.thread_ts !== event.ts) {
+      shouldRespond = await botPostedInThread(event.channel, event.thread_ts, botUserId);
+    }
+  }
+
+  if (!shouldRespond) {
+    return NextResponse.json({ ok: true });
+  }
+
+  console.log('[slack-bot] processing', { type: event.type, channel: event.channel, ts: event.ts });
+
+  try {
+    await slackPostMessage({
+      channel: event.channel,
+      text: 'thinking...',
+      thread_ts: event.thread_ts || event.ts,
+    });
+  } catch (err) {
+    console.warn('[slack-bot] ack post failed', err);
+  }
+
+  try {
+    await processQuestion(event);
+    console.log('[slack-bot] processQuestion done', event.ts);
+  } catch (err) {
+    console.error('[slack-bot] processQuestion failed', err);
+    await slackPostMessage({
+      channel: event.channel,
+      text: `Hit an error processing that: ${err instanceof Error ? err.message : String(err)}`,
+      thread_ts: event.thread_ts || event.ts,
+    }).catch(() => {});
   }
 
   return NextResponse.json({ ok: true });

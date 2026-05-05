@@ -64,15 +64,26 @@ export interface SlackUser {
 }
 
 let cachedBotTeamId: string | null = null;
+let cachedBotUserId: string | null = null;
+
+async function refreshAuthCache(): Promise<void> {
+  const r = await slackPost('auth.test', {});
+  if (r.ok) {
+    if (typeof r.team_id === 'string') cachedBotTeamId = r.team_id as string;
+    if (typeof r.user_id === 'string') cachedBotUserId = r.user_id as string;
+  }
+}
 
 export async function getBotTeamId(): Promise<string | null> {
   if (cachedBotTeamId) return cachedBotTeamId;
-  const r = await slackPost('auth.test', {});
-  if (r.ok && typeof r.team_id === 'string') {
-    cachedBotTeamId = r.team_id as string;
-    return cachedBotTeamId;
-  }
-  return null;
+  await refreshAuthCache();
+  return cachedBotTeamId;
+}
+
+export async function getBotUserId(): Promise<string | null> {
+  if (cachedBotUserId) return cachedBotUserId;
+  await refreshAuthCache();
+  return cachedBotUserId;
 }
 
 export async function isInternalUser(userId: string): Promise<boolean> {
