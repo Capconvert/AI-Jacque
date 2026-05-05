@@ -1,11 +1,12 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { ahrefsToolDefinitions } from './ahrefs';
 import { ga4ToolDefinitions } from './ga4';
+import { googleAdsToolDefinitions } from './google-ads';
 import type { ClientToolContext, ToolDefinition } from './types';
 
 export type { ClientToolContext } from './types';
 
-const ALL_TOOLS: ToolDefinition[] = [...ahrefsToolDefinitions, ...ga4ToolDefinitions];
+const ALL_TOOLS: ToolDefinition[] = [...ahrefsToolDefinitions, ...ga4ToolDefinitions, ...googleAdsToolDefinitions];
 
 const TOOL_MAP: Map<string, ToolDefinition> = new Map(ALL_TOOLS.map((t) => [t.spec.name, t]));
 

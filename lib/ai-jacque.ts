@@ -124,6 +124,7 @@ LIVE DATA TOOLS: You have access to live tools when a client is attached:
 - ahrefs_site_metrics, ahrefs_top_keywords, ahrefs_top_pages: Ahrefs estimates for any domain (defaults to current client). Good for "what does Ahrefs say about X."
 - gsc_top_pages, gsc_top_queries: real Google Search Console clicks/impressions/CTR/position. Use these over Ahrefs estimates whenever the question is about actual Google traffic. Requires the client to have an Ahrefs project ID configured - if the tool returns an error about that, say so.
 - ga4_run_report: any GA4 metric/dimension combo (sessions, conversions, revenue, landing pages, channels, etc.). Use for traffic, conversion, and revenue questions. Requires the client to have a GA4 property ID configured.
+- google_ads_account_metrics, google_ads_campaign_performance, google_ads_top_search_terms, google_ads_keyword_performance: live Google Ads data - spend, conversions, CPA, ROAS, clicks, impressions, top campaigns by spend, search term reports, keyword performance. Use these to verify any claimed paid-search metric (CPA, spend, conversion rate) and to diagnose paid performance issues. Requires the client to have a google_ads_customer_id configured. If the tool returns an error about that, say so.
 
 When to call tools:
 - The employee asks for current numbers (traffic, rankings, conversions, top pages, top queries, channel mix, revenue) - call the relevant tool, then answer with the real number.
@@ -206,7 +207,7 @@ export async function askAIJacque(
 
     if (clientId !== null) {
       const clientResult = await sql`
-        SELECT id, name, website_url, summary, crawled_content, ahrefs_project_id, ga4_property_id FROM clients WHERE id = ${clientId}
+        SELECT id, name, website_url, summary, crawled_content, ahrefs_project_id, ga4_property_id, google_ads_customer_id FROM clients WHERE id = ${clientId}
       `;
 
       if (!clientResult.rows.length) {
@@ -221,6 +222,7 @@ export async function askAIJacque(
         websiteUrl: client_data.website_url as string,
         ahrefsProjectId: (client_data.ahrefs_project_id as number | null) ?? null,
         ga4PropertyId: (client_data.ga4_property_id as string | null) ?? null,
+        googleAdsCustomerId: (client_data.google_ads_customer_id as string | null) ?? null,
       };
       clientContext = `
 
@@ -228,6 +230,7 @@ Client: ${client_data.name}
 Website: ${client_data.website_url}
 Ahrefs project ID: ${toolCtx.ahrefsProjectId ?? 'not configured'}
 GA4 property ID: ${toolCtx.ga4PropertyId ?? 'not configured'}
+Google Ads customer ID: ${toolCtx.googleAdsCustomerId ?? 'not configured'}
 
 Client Summary:
 ${client_data.summary || 'No summary available'}

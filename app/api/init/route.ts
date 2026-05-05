@@ -32,6 +32,7 @@ export async function POST() {
 
     await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS ahrefs_project_id INT`;
     await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS ga4_property_id VARCHAR(50)`;
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS google_ads_customer_id VARCHAR(20)`;
 
     return NextResponse.json({ success: true, message: 'Database initialized' });
   } catch (error) {

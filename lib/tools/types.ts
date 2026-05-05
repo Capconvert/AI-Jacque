@@ -6,6 +6,7 @@ export interface ClientToolContext {
   websiteUrl: string;
   ahrefsProjectId: number | null;
   ga4PropertyId: string | null;
+  googleAdsCustomerId: string | null;
 }
 
 export type ToolHandler = (

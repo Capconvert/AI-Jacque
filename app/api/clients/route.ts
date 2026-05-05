@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    const result = await sql`SELECT id, name, website_url, summary, last_crawled, ahrefs_project_id, ga4_property_id FROM clients ORDER BY name`;
+    const result = await sql`SELECT id, name, website_url, summary, last_crawled, ahrefs_project_id, ga4_property_id, google_ads_customer_id FROM clients ORDER BY name`;
     return NextResponse.json(result.rows);
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
@@ -12,12 +12,12 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, website_url, ahrefs_project_id, ga4_property_id } = await request.json();
+    const { name, website_url, ahrefs_project_id, ga4_property_id, google_ads_customer_id } = await request.json();
 
     const result = await sql`
-      INSERT INTO clients (name, website_url, ahrefs_project_id, ga4_property_id)
-      VALUES (${name}, ${website_url}, ${ahrefs_project_id ?? null}, ${ga4_property_id ?? null})
-      RETURNING id, name, website_url, ahrefs_project_id, ga4_property_id
+      INSERT INTO clients (name, website_url, ahrefs_project_id, ga4_property_id, google_ads_customer_id)
+      VALUES (${name}, ${website_url}, ${ahrefs_project_id ?? null}, ${ga4_property_id ?? null}, ${google_ads_customer_id ?? null})
+      RETURNING id, name, website_url, ahrefs_project_id, ga4_property_id, google_ads_customer_id
     `;
 
     return NextResponse.json(result.rows[0], { status: 201 });
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { id, ahrefs_project_id, ga4_property_id } = await request.json();
+    const { id, ahrefs_project_id, ga4_property_id, google_ads_customer_id } = await request.json();
     if (typeof id !== 'number') {
       return NextResponse.json({ error: 'id is required' }, { status: 400 });
     }
@@ -36,9 +36,10 @@ export async function PATCH(request: NextRequest) {
     const result = await sql`
       UPDATE clients
       SET ahrefs_project_id = COALESCE(${ahrefs_project_id ?? null}, ahrefs_project_id),
-          ga4_property_id = COALESCE(${ga4_property_id ?? null}, ga4_property_id)
+          ga4_property_id = COALESCE(${ga4_property_id ?? null}, ga4_property_id),
+          google_ads_customer_id = COALESCE(${google_ads_customer_id ?? null}, google_ads_customer_id)
       WHERE id = ${id}
-      RETURNING id, name, website_url, ahrefs_project_id, ga4_property_id
+      RETURNING id, name, website_url, ahrefs_project_id, ga4_property_id, google_ads_customer_id
     `;
 
     if (!result.rows.length) {
