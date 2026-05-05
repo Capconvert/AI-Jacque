@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { sql } from '@vercel/postgres';
+import { dispatchTool, toolSpecs, type ClientToolContext } from './tools';
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -94,7 +95,24 @@ Voice (every answer):
 
 Capconvert services: SEO, GEO (AI-engine organic), PPC Management, AEO (combined). Platforms covered: Google, ChatGPT, Perplexity, Claude, Gemini, Bing, Amazon, DuckDuckGo, Brave, Yahoo. Mention these only when the question is about positioning, services, or strategy.
 
-When unsure of specifics: ask a clarifying question or admit the gap. Do not invent.`;
+When unsure of specifics: ask a clarifying question or admit the gap. Do not invent.
+
+LIVE DATA TOOLS: You have access to live tools when a client is attached:
+- ahrefs_site_metrics, ahrefs_top_keywords, ahrefs_top_pages: Ahrefs estimates for any domain (defaults to current client). Good for "what does Ahrefs say about X."
+- gsc_top_pages, gsc_top_queries: real Google Search Console clicks/impressions/CTR/position. Use these over Ahrefs estimates whenever the question is about actual Google traffic. Requires the client to have an Ahrefs project ID configured - if the tool returns an error about that, say so.
+- ga4_run_report: any GA4 metric/dimension combo (sessions, conversions, revenue, landing pages, channels, etc.). Use for traffic, conversion, and revenue questions. Requires the client to have a GA4 property ID configured.
+
+When to call tools:
+- The employee asks for current numbers (traffic, rankings, conversions, top pages, top queries, channel mix, revenue) - call the relevant tool, then answer with the real number.
+- The cached client summary is months old; tools are live. Prefer tools for anything time-sensitive.
+- Strategy questions about a client's actual situation - pull the relevant data first, then advise.
+
+When NOT to call tools:
+- Operational how-to questions (where do I click in Google Ads, where is the receipt) - these do not need data.
+- General principle questions that do not depend on the client's specific numbers.
+- Questions about a domain or company that is not the attached client - tools may still work if you pass an explicit target, but think first whether it is needed.
+
+When you call tools, lead the answer with the actual number first, then context. Cite the data source briefly: "Search Console shows X clicks last 28 days" or "GA4 shows Y sessions" or "Ahrefs estimates Z." Do not show the raw JSON.`;
 
 function sanitizeJacqueVoice(text: string): string {
   return text
@@ -121,9 +139,11 @@ export async function askAIJacque(
     let clientContext = '';
     let clientName: string | null = null;
 
+    let toolCtx: ClientToolContext | null = null;
+
     if (clientId !== null) {
       const clientResult = await sql`
-        SELECT id, name, website_url, summary, crawled_content FROM clients WHERE id = ${clientId}
+        SELECT id, name, website_url, summary, crawled_content, ahrefs_project_id, ga4_property_id FROM clients WHERE id = ${clientId}
       `;
 
       if (!clientResult.rows.length) {
@@ -132,10 +152,19 @@ export async function askAIJacque(
 
       const client_data = clientResult.rows[0];
       clientName = client_data.name;
+      toolCtx = {
+        clientId: client_data.id as number,
+        clientName: client_data.name as string,
+        websiteUrl: client_data.website_url as string,
+        ahrefsProjectId: (client_data.ahrefs_project_id as number | null) ?? null,
+        ga4PropertyId: (client_data.ga4_property_id as string | null) ?? null,
+      };
       clientContext = `
 
 Client: ${client_data.name}
 Website: ${client_data.website_url}
+Ahrefs project ID: ${toolCtx.ahrefsProjectId ?? 'not configured'}
+GA4 property ID: ${toolCtx.ga4PropertyId ?? 'not configured'}
 
 Client Summary:
 ${client_data.summary || 'No summary available'}
@@ -177,27 +206,71 @@ ${client_data.crawled_content || 'No content crawled yet'}
       messages.push({ role: 'user', content: question });
     }
 
-    const response = await client.messages.create({
-      model: 'claude-opus-4-7',
-      max_tokens: 16000,
-      thinking: { type: 'adaptive' },
-      output_config: { effort: 'max' },
-      system: systemBlocks,
-      messages,
-    });
+    const tools = toolCtx ? toolSpecs() : undefined;
+    const MAX_TOOL_TURNS = 8;
+    let response: Anthropic.Message | null = null;
+    const usageTotals = { input: 0, cache_read: 0, cache_creation: 0, output: 0 };
+
+    for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
+      const params: Anthropic.MessageCreateParamsNonStreaming = {
+        model: 'claude-opus-4-7',
+        max_tokens: 16000,
+        thinking: { type: 'adaptive' },
+        output_config: { effort: 'max' },
+        system: systemBlocks,
+        messages,
+        ...(tools ? { tools } : {}),
+      };
+
+      response = await client.messages.create(params);
+
+      if (response.usage) {
+        usageTotals.input += response.usage.input_tokens || 0;
+        usageTotals.cache_read += response.usage.cache_read_input_tokens || 0;
+        usageTotals.cache_creation += response.usage.cache_creation_input_tokens || 0;
+        usageTotals.output += response.usage.output_tokens || 0;
+      }
+
+      if (response.stop_reason !== 'tool_use') break;
+
+      const toolUseBlocks = response.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
+      if (toolUseBlocks.length === 0) break;
+
+      messages.push({ role: 'assistant', content: response.content });
+
+      const toolResults: Anthropic.ToolResultBlockParam[] = [];
+      for (const block of toolUseBlocks) {
+        const dispatched = await dispatchTool(
+          block.name,
+          (block.input as Record<string, unknown>) || {},
+          toolCtx
+        );
+        console.log('[ai-jacque] tool', {
+          name: dispatched.name,
+          ok: dispatched.ok,
+          ms: dispatched.ms,
+          client: toolCtx?.clientName ?? null,
+        });
+        toolResults.push({
+          type: 'tool_result',
+          tool_use_id: block.id,
+          content: JSON.stringify(dispatched.result).slice(0, 100_000),
+          is_error: !dispatched.ok,
+        });
+      }
+
+      messages.push({ role: 'user', content: toolResults });
+    }
+
+    if (!response) {
+      return { error: 'No response from model' };
+    }
 
     const textBlock = response.content.find((b): b is Anthropic.TextBlock => b.type === 'text');
     const rawAnswer = textBlock?.text ?? 'No response';
     const answer = sanitizeJacqueVoice(rawAnswer);
 
-    if (response.usage) {
-      console.log('[ai-jacque] tokens', {
-        input: response.usage.input_tokens,
-        cache_read: response.usage.cache_read_input_tokens,
-        cache_creation: response.usage.cache_creation_input_tokens,
-        output: response.usage.output_tokens,
-      });
-    }
+    console.log('[ai-jacque] tokens', usageTotals);
 
     if (clientId !== null) {
       const questionForLog = images.length > 0

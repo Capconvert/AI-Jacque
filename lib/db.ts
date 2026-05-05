@@ -12,6 +12,9 @@ export async function initializeDatabase() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`;
 
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS ahrefs_project_id INT`;
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS ga4_property_id VARCHAR(50)`;
+
     await sql`CREATE TABLE IF NOT EXISTS crawled_pages (
       id SERIAL PRIMARY KEY,
       client_id INT REFERENCES clients(id) ON DELETE CASCADE,

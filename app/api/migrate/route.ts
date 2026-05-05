@@ -8,6 +8,9 @@ export async function POST() {
       ADD COLUMN IF NOT EXISTS summary TEXT
     `;
 
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS ahrefs_project_id INT`;
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS ga4_property_id VARCHAR(50)`;
+
     return Response.json({
       success: true,
       message: 'Database migrated successfully',

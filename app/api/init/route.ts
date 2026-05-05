@@ -30,6 +30,9 @@ export async function POST() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`;
 
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS ahrefs_project_id INT`;
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS ga4_property_id VARCHAR(50)`;
+
     return NextResponse.json({ success: true, message: 'Database initialized' });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
