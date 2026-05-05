@@ -47,7 +47,7 @@ async function processMention(event: SlackEvent) {
   if (!question) return;
 
   const userInfo = await slackUserInfo(event.user);
-  const askerName = pickFirstName(userInfo);
+  const employeeFirstName = pickFirstName(userInfo);
 
   let history = '';
   if (event.thread_ts && event.thread_ts !== event.ts) {
@@ -57,14 +57,19 @@ async function processMention(event: SlackEvent) {
       if (r.ts === event.ts) continue;
       const text = stripMentions(r.text || '');
       if (!text) continue;
-      const role = r.bot_id ? 'AI Jacque' : 'Asker';
+      const role = r.bot_id ? 'AI Jacque' : (employeeFirstName ? `Capconvert teammate ${employeeFirstName}` : 'Capconvert teammate');
       lines.push(`[${role}]: ${text}`);
     }
     history = lines.slice(-10).join('\n\n');
   }
 
+  const employeeContext = employeeFirstName
+    ? `Capconvert teammate ${employeeFirstName} is asking from Slack #${event.channel}. Default to INTERNAL mode unless they explicitly frame a client question.`
+    : `Capconvert teammate is asking from Slack. Default to INTERNAL mode unless they explicitly frame a client question.`;
+  const questionWithContext = `${employeeContext}\n\nQuestion: ${question}`;
+
   const clientId = await findClientByName(question, history);
-  const result = await askAIJacque(clientId, question, history, [], askerName);
+  const result = await askAIJacque(clientId, questionWithContext, history, [], null);
 
   const answer = 'error' in result ? `Hit an error: ${result.error}` : result.answer;
 
