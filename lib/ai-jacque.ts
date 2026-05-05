@@ -180,6 +180,49 @@ function relativeTime(iso: string | Date): string {
   return `${months}mo ago`;
 }
 
+async function getJacqueCommsReferences(clientId: number | null, limit = 3): Promise<string> {
+  try {
+    let rows: Array<Record<string, unknown>> = [];
+    if (clientId !== null) {
+      const result = await sql`
+        SELECT filename, content, comm_date, created_at
+        FROM jacque_comms
+        WHERE client_id = ${clientId}
+        ORDER BY COALESCE(comm_date, created_at) DESC
+        LIMIT ${limit}
+      `;
+      rows = result.rows;
+    }
+    if (rows.length < limit) {
+      const need = limit - rows.length;
+      const existingFiles = rows.map((r) => String(r.filename));
+      const result = await sql.query(
+        `SELECT filename, content, comm_date, created_at
+         FROM jacque_comms
+         WHERE filename != ALL($1::text[])
+         ORDER BY COALESCE(comm_date, created_at) DESC
+         LIMIT $2`,
+        [existingFiles, need]
+      );
+      rows = rows.concat(result.rows);
+    }
+    if (!rows.length) return '';
+
+    const blocks: string[] = ['REFERENCE: actual Jacque communications from the comms archive. Match this voice, brevity, structure, and decision style. These are how Jacque actually writes - mirror it. Do NOT quote them verbatim, do not over-imitate; learn the patterns.'];
+    for (const r of rows) {
+      const filename = String(r.filename ?? '');
+      const content = String(r.content ?? '').slice(0, 2000).replace(/\s+/g, ' ').trim();
+      const when = r.comm_date ? relativeTime(r.comm_date as string | Date) : (r.created_at ? relativeTime(r.created_at as string | Date) : '');
+      if (!content) continue;
+      blocks.push(`\n--- ${filename} (${when}) ---\n${content}`);
+    }
+    return blocks.join('\n');
+  } catch (err) {
+    console.error('[ai-jacque] jacque comms lookup failed', err);
+    return '';
+  }
+}
+
 async function getRecentConversations(clientId: number, limit = 8, sinceDays = 30): Promise<string> {
   try {
     const result = await sql`
@@ -277,6 +320,12 @@ ${client_data.crawled_content || 'No content crawled yet'}
     }
 
     const messages: Anthropic.MessageParam[] = [];
+
+    const commsRefs = await getJacqueCommsReferences(clientId, 3);
+    if (commsRefs) {
+      messages.push({ role: 'user', content: commsRefs });
+      messages.push({ role: 'assistant', content: 'Acknowledged. I will mirror that voice and structure.' });
+    }
 
     if (clientId !== null) {
       const memoryBlock = await getRecentConversations(clientId);
