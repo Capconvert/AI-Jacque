@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { after } from 'next/server';
 import { verifySlackSignature } from '@/lib/slack-verify';
 import {
   slackPostMessage,
@@ -7,7 +6,7 @@ import {
   slackUserInfo,
   pickFirstName,
   stripMentions,
-  isInternalUser,
+  getBotTeamId,
 } from '@/lib/slack-bot';
 import { askAIJacque, findClientByName } from '@/lib/ai-jacque';
 
@@ -108,28 +107,44 @@ export async function POST(request: NextRequest) {
   }
 
   if (payload.type === 'event_callback' && payload.event?.type === 'app_mention') {
+    console.log('[slack-bot] received app_mention', {
+      event_id: payload.event_id,
+      user: payload.event.user,
+      channel: payload.event.channel,
+      ts: payload.event.ts,
+      thread_ts: payload.event.thread_ts,
+    });
+
     if (payload.event_id && alreadySeen(payload.event_id)) {
+      console.log('[slack-bot] duplicate event_id, skipping');
       return NextResponse.json({ ok: true });
     }
     if (payload.event.bot_id) {
+      console.log('[slack-bot] ignoring bot mention');
       return NextResponse.json({ ok: true });
     }
+
     if (payload.event.user) {
-      const internal = await isInternalUser(payload.event.user);
-      if (!internal) {
-        console.log('[slack-bot] ignoring mention from external user', {
-          user: payload.event.user,
-          channel: payload.event.channel,
-        });
-        return NextResponse.json({ ok: true });
+      try {
+        const [user, botTeam] = await Promise.all([
+          slackUserInfo(payload.event.user),
+          getBotTeamId(),
+        ]);
+        const userTeam = user?.team_id;
+        console.log('[slack-bot] team check', { userTeam, botTeam });
+        if (userTeam && botTeam && userTeam !== botTeam) {
+          console.log('[slack-bot] external user, ignoring');
+          return NextResponse.json({ ok: true });
+        }
+      } catch (err) {
+        console.warn('[slack-bot] team check failed, allowing through', err);
       }
     }
 
     const eventCopy = payload.event;
-    after(async () => {
-      try {
-        await processMention(eventCopy);
-      } catch (err) {
+    processMention(eventCopy)
+      .then(() => console.log('[slack-bot] processMention done', eventCopy.ts))
+      .catch(async (err) => {
         console.error('[slack-bot] processMention failed', err);
         if (eventCopy.channel) {
           await slackPostMessage({
@@ -138,8 +153,7 @@ export async function POST(request: NextRequest) {
             thread_ts: eventCopy.thread_ts || eventCopy.ts,
           }).catch(() => {});
         }
-      }
-    });
+      });
 
     return NextResponse.json({ ok: true });
   }
