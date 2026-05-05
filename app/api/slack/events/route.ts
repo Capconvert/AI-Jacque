@@ -142,18 +142,19 @@ export async function POST(request: NextRequest) {
     }
 
     const eventCopy = payload.event;
-    processMention(eventCopy)
-      .then(() => console.log('[slack-bot] processMention done', eventCopy.ts))
-      .catch(async (err) => {
-        console.error('[slack-bot] processMention failed', err);
-        if (eventCopy.channel) {
-          await slackPostMessage({
-            channel: eventCopy.channel,
-            text: `Hit an error processing that: ${err instanceof Error ? err.message : String(err)}`,
-            thread_ts: eventCopy.thread_ts || eventCopy.ts,
-          }).catch(() => {});
-        }
-      });
+    try {
+      await processMention(eventCopy);
+      console.log('[slack-bot] processMention done', eventCopy.ts);
+    } catch (err) {
+      console.error('[slack-bot] processMention failed', err);
+      if (eventCopy.channel) {
+        await slackPostMessage({
+          channel: eventCopy.channel,
+          text: `Hit an error processing that: ${err instanceof Error ? err.message : String(err)}`,
+          thread_ts: eventCopy.thread_ts || eventCopy.ts,
+        }).catch(() => {});
+      }
+    }
 
     return NextResponse.json({ ok: true });
   }
