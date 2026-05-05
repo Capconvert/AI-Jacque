@@ -137,6 +137,46 @@ function sanitizeJacqueVoice(text: string): string {
     .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '$1');
 }
 
+function relativeTime(iso: string | Date): string {
+  const ts = typeof iso === 'string' ? new Date(iso).getTime() : iso.getTime();
+  if (Number.isNaN(ts)) return '';
+  const minutes = Math.floor((Date.now() - ts) / 60000);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  return `${months}mo ago`;
+}
+
+async function getRecentConversations(clientId: number, limit = 8, sinceDays = 30): Promise<string> {
+  try {
+    const result = await sql`
+      SELECT question, answer, created_at
+      FROM conversations
+      WHERE client_id = ${clientId}
+        AND created_at > NOW() - (${sinceDays}::int * INTERVAL '1 day')
+      ORDER BY created_at DESC
+      LIMIT ${limit}
+    `;
+    if (!result.rows.length) return '';
+
+    const blocks: string[] = ['Prior conversations with this client (most recent first - skim for context, do not repeat answers verbatim):'];
+    for (const r of result.rows) {
+      const q = String(r.question ?? '').slice(0, 400).replace(/\s+/g, ' ').trim();
+      const a = String(r.answer ?? '').slice(0, 600).replace(/\s+/g, ' ').trim();
+      const when = relativeTime(r.created_at as string | Date);
+      if (!q) continue;
+      blocks.push(`\n[${when}]\nQ: ${q}\nA: ${a}`);
+    }
+    return blocks.join('\n');
+  } catch (err) {
+    console.error('[ai-jacque] memory lookup failed', err);
+    return '';
+  }
+}
+
 export type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
 export interface ImageInput {
   mediaType: ImageMediaType;
@@ -205,8 +245,17 @@ ${client_data.crawled_content || 'No content crawled yet'}
     }
 
     const messages: Anthropic.MessageParam[] = [];
+
+    if (clientId !== null) {
+      const memoryBlock = await getRecentConversations(clientId);
+      if (memoryBlock) {
+        messages.push({ role: 'user', content: memoryBlock });
+        messages.push({ role: 'assistant', content: 'Got it. I will use that as background.' });
+      }
+    }
+
     if (conversationHistory.trim()) {
-      messages.push({ role: 'user', content: `Prior conversation context:\n${conversationHistory}` });
+      messages.push({ role: 'user', content: `Current session context:\n${conversationHistory}` });
       messages.push({ role: 'assistant', content: 'Understood. Continuing.' });
     }
 
