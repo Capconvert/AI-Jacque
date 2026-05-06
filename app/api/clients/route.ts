@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    const result = await sql`SELECT id, name, website_url, summary, last_crawled, ahrefs_project_id, ga4_property_id, google_ads_customer_id FROM clients ORDER BY name`;
+    const result = await sql`SELECT id, name, website_url, summary, last_crawled, ahrefs_project_id, ga4_property_id, google_ads_customer_id, COALESCE(pocs, ARRAY[]::TEXT[]) AS pocs FROM clients ORDER BY name`;
     return NextResponse.json(result.rows);
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

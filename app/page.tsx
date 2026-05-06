@@ -28,6 +28,7 @@ interface ClientOption {
   id: number;
   name: string;
   website_url: string;
+  pocs?: string[];
 }
 
 const SUPPORTED_TYPES: ImageMediaType[] = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -255,6 +256,7 @@ export default function Home() {
   const pickClient = (id: number | null, name: string) => {
     if (!selectedChatId) return;
     setChatClient(selectedChatId, id);
+    setChatAskerName(selectedChatId, '');
     setClientQuery(name);
     setClientOpen(false);
     setClientHighlight(0);
@@ -565,14 +567,36 @@ export default function Home() {
                   </div>
                 )}
               </div>
-              <label className="text-custom-muted text-[10px] font-semibold uppercase tracking-wider ml-2">Asked by</label>
-              <input
-                type="text"
-                value={currentChat?.askerName ?? ''}
-                onChange={(e) => setChatAskerName(selectedChatId, e.target.value)}
-                placeholder="e.g. Katrina"
-                className="bg-custom-card border border-custom-darkGrey text-custom-white px-3 py-2 text-xs rounded-md focus:outline-none focus:ring-1 focus:ring-custom-cyan w-[140px]"
-              />
+              <label className="text-custom-muted text-[10px] font-semibold uppercase tracking-wider ml-2">POC</label>
+              {(() => {
+                const askerName = currentChat?.askerName ?? '';
+                const pocs = currentClient?.pocs ?? [];
+                const hasPocs = pocs.length > 0;
+                const optionList = askerName && !pocs.includes(askerName)
+                  ? [askerName, ...pocs]
+                  : pocs;
+                return (
+                  <select
+                    value={askerName}
+                    onChange={(e) => setChatAskerName(selectedChatId, e.target.value)}
+                    disabled={!currentClient || !hasPocs}
+                    className="bg-custom-card border border-custom-darkGrey text-custom-white px-3 py-2 text-xs rounded-md focus:outline-none focus:ring-1 focus:ring-custom-cyan w-[160px] disabled:opacity-50"
+                  >
+                    <option value="">
+                      {!currentClient
+                        ? 'Pick a client first'
+                        : !hasPocs
+                        ? 'No POCs configured'
+                        : 'Select POC...'}
+                    </option>
+                    {optionList.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                );
+              })()}
               {currentClient && (
                 <span className="text-custom-muted text-xs truncate">
                   {currentClient.website_url}
