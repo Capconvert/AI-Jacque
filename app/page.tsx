@@ -123,6 +123,7 @@ export default function Home() {
   const [pocHighlight, setPocHighlight] = useState(0);
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const [previewImage, setPreviewImage] = useState<AttachedImage | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const clientBoxRef = useRef<HTMLDivElement>(null);
@@ -139,6 +140,15 @@ export default function Home() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (!previewImage) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPreviewImage(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [previewImage]);
 
   useEffect(() => {
     fetch('./api/clients')
@@ -809,19 +819,19 @@ export default function Home() {
                         {msg.images && msg.images.length > 0 && (
                           <div className={`flex flex-wrap gap-2 mb-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                             {msg.images.map((img, i) => (
-                              <a
+                              <button
                                 key={i}
-                                href={img.dataUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block rounded-md overflow-hidden border border-custom-darkGrey hover:border-custom-cyan"
+                                type="button"
+                                onClick={() => setPreviewImage(img)}
+                                title="Click to preview"
+                                className="block rounded-md overflow-hidden border border-custom-darkGrey hover:border-custom-cyan cursor-zoom-in"
                               >
                                 <img
                                   src={img.dataUrl}
                                   alt={`screenshot ${i + 1}`}
                                   className="max-w-xs max-h-64 object-contain"
                                 />
-                              </a>
+                              </button>
                             ))}
                           </div>
                         )}
@@ -849,13 +859,24 @@ export default function Home() {
                 <div className="flex flex-wrap gap-2 mb-2">
                   {pendingImages.map((img, i) => (
                     <div key={i} className="relative group">
-                      <img
-                        src={img.dataUrl}
-                        alt={`pending ${i + 1}`}
-                        className="h-16 w-16 object-cover rounded-md border border-custom-darkGrey"
-                      />
                       <button
-                        onClick={() => removePendingImage(i)}
+                        type="button"
+                        onClick={() => setPreviewImage(img)}
+                        title="Click to preview"
+                        className="block cursor-zoom-in"
+                      >
+                        <img
+                          src={img.dataUrl}
+                          alt={`pending ${i + 1}`}
+                          className="h-16 w-16 object-cover rounded-md border border-custom-darkGrey hover:border-custom-cyan"
+                        />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removePendingImage(i);
+                        }}
                         className="absolute -top-1 -right-1 bg-custom-cyan text-custom-black w-4 h-4 text-xs leading-none flex items-center justify-center font-bold rounded-full"
                         title="Remove"
                       >
@@ -920,6 +941,27 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-8 cursor-zoom-out"
+          onClick={() => setPreviewImage(null)}
+        >
+          <img
+            src={previewImage.dataUrl}
+            alt="Screenshot preview"
+            className="max-w-full max-h-full object-contain"
+          />
+          <button
+            type="button"
+            onClick={() => setPreviewImage(null)}
+            className="absolute top-4 right-4 text-white/80 hover:text-white text-3xl leading-none"
+            aria-label="Close preview"
+          >
+            ×
+          </button>
+        </div>
+      )}
     </main>
   );
 }
