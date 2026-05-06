@@ -252,6 +252,13 @@ export default function Home() {
     );
   };
 
+  const deleteChat = (chatId: string) => {
+    setChats((prev) => prev.filter((c) => c.id !== chatId));
+    if (selectedChatId === chatId) {
+      setSelectedChatId(null);
+    }
+  };
+
   const startEditingChat = (chatId: string, currentTitle: string) => {
     setEditingChatId(chatId);
     setEditingTitle(currentTitle);
@@ -546,19 +553,39 @@ export default function Home() {
                     className="w-full bg-custom-card border border-custom-cyan text-custom-white px-3 py-2 text-xs rounded-md focus:outline-none focus:ring-1 focus:ring-custom-cyan"
                   />
                 ) : (
-                  <button
+                  <div
                     key={chat.id}
-                    onClick={() => setSelectedChatId(chat.id)}
-                    onDoubleClick={() => startEditingChat(chat.id, chat.title)}
-                    title="Double-click to rename"
-                    className={`w-full text-left px-3 py-2 text-xs rounded-md ${
+                    className={`group flex items-center rounded-md ${
                       selectedChatId === chat.id
                         ? 'bg-custom-cyan text-custom-black font-semibold'
                         : 'text-custom-white hover:bg-custom-card'
                     }`}
                   >
-                    <p className="truncate">{chat.title}</p>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedChatId(chat.id)}
+                      onDoubleClick={() => startEditingChat(chat.id, chat.title)}
+                      title="Double-click to rename"
+                      className="flex-1 text-left px-3 py-2 text-xs truncate min-w-0"
+                    >
+                      {chat.title}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm(`Delete "${chat.title}"?`)) deleteChat(chat.id);
+                      }}
+                      title="Delete chat"
+                      aria-label="Delete chat"
+                      className={`opacity-0 group-hover:opacity-100 mr-1 px-1.5 leading-none rounded text-base ${
+                        selectedChatId === chat.id
+                          ? 'text-custom-black hover:bg-black/15'
+                          : 'text-custom-muted hover:text-custom-white hover:bg-custom-darkGrey'
+                      }`}
+                    >
+                      ×
+                    </button>
+                  </div>
                 )
               )}
             </div>
