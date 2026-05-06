@@ -152,10 +152,13 @@ export default function Home() {
       if (!raw) return;
       const parsed = JSON.parse(raw) as { chats?: Chat[]; selectedChatId?: string | null };
       if (Array.isArray(parsed.chats)) {
-        setChats(parsed.chats);
+        const cleaned = parsed.chats.map((c) =>
+          c.messages.length === 0 ? { ...c, clientId: null, askerName: '' } : c
+        );
+        setChats(cleaned);
         if (
           typeof parsed.selectedChatId === 'string' &&
-          parsed.chats.some((c) => c.id === parsed.selectedChatId)
+          cleaned.some((c) => c.id === parsed.selectedChatId)
         ) {
           setSelectedChatId(parsed.selectedChatId);
         }
