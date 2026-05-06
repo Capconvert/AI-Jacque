@@ -118,11 +118,15 @@ export default function Home() {
   const [clientQuery, setClientQuery] = useState('');
   const [clientOpen, setClientOpen] = useState(false);
   const [clientHighlight, setClientHighlight] = useState(0);
+  const [pocQuery, setPocQuery] = useState('');
+  const [pocOpen, setPocOpen] = useState(false);
+  const [pocHighlight, setPocHighlight] = useState(0);
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const clientBoxRef = useRef<HTMLDivElement>(null);
+  const pocBoxRef = useRef<HTMLDivElement>(null);
   const dragCounter = useRef(0);
   const skipFirstPersist = useRef(true);
 
@@ -200,6 +204,22 @@ export default function Home() {
     return () => document.removeEventListener('mousedown', onDocMouseDown);
   }, [currentClient?.name]);
 
+  useEffect(() => {
+    setPocQuery(currentChat?.askerName ?? '');
+    setPocOpen(false);
+  }, [selectedChatId, currentChat?.askerName]);
+
+  useEffect(() => {
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (pocBoxRef.current && !pocBoxRef.current.contains(e.target as Node)) {
+        setPocOpen(false);
+        setPocQuery(currentChat?.askerName ?? '');
+      }
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    return () => document.removeEventListener('mousedown', onDocMouseDown);
+  }, [currentChat?.askerName]);
+
   const createNewChat = () => {
     const newChat: Chat = {
       id: Date.now().toString(),
@@ -263,6 +283,71 @@ export default function Home() {
     setClientQuery(name);
     setClientOpen(false);
     setClientHighlight(0);
+  };
+
+  const createAndPickClient = async (name: string) => {
+    if (!selectedChatId) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    try {
+      const res = await fetch('./api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (!res.ok) throw new Error(`POST /api/clients ${res.status}`);
+      const created = (await res.json()) as ClientOption;
+      setClients((prev) => {
+        const next = prev.filter((c) => c.id !== created.id);
+        return [...next, created].sort((a, b) =>
+          a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+        );
+      });
+      setChatClient(selectedChatId, created.id);
+      setChatAskerName(selectedChatId, '');
+      setClientQuery(created.name);
+      setClientOpen(false);
+      setClientHighlight(0);
+    } catch (err) {
+      console.error('Failed to create client', err);
+    }
+  };
+
+  const pocSuggestions = (() => {
+    const list = currentClient?.pocs ?? [];
+    const q = pocQuery.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((p) => p.toLowerCase().includes(q));
+  })();
+
+  const commitPoc = async (value: string) => {
+    if (!selectedChatId) return;
+    const trimmed = value.trim();
+    setChatAskerName(selectedChatId, trimmed);
+    setPocQuery(trimmed);
+    setPocOpen(false);
+    setPocHighlight(0);
+
+    if (!trimmed || !currentClient) return;
+    if (currentClient.pocs?.includes(trimmed)) return;
+
+    setClients((prev) =>
+      prev.map((c) =>
+        c.id === currentClient.id
+          ? { ...c, pocs: [...(c.pocs ?? []), trimmed] }
+          : c
+      )
+    );
+
+    try {
+      await fetch('./api/clients', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: currentClient.id, add_poc: trimmed }),
+      });
+    } catch (err) {
+      console.error('Failed to add POC', err);
+    }
   };
 
   const addFiles = async (files: FileList | File[]) => {
@@ -525,7 +610,11 @@ export default function Home() {
                     } else if (e.key === 'Enter') {
                       e.preventDefault();
                       const c = filteredClients[clientHighlight];
-                      if (c) pickClient(c.id, c.name);
+                      if (c) {
+                        pickClient(c.id, c.name);
+                      } else if (clientQuery.trim()) {
+                        createAndPickClient(clientQuery.trim());
+                      }
                     }
                   }}
                   placeholder={clientsLoading ? 'Loading clients...' : 'Search clients or pick General'}
@@ -563,43 +652,103 @@ export default function Home() {
                       </button>
                     ))}
                     {filteredClients.length === 0 && (
-                      <div className="px-3 py-2 text-xs text-custom-muted">
-                        No clients match
-                      </div>
+                      clientQuery.trim() ? (
+                        <button
+                          type="button"
+                          onClick={() => createAndPickClient(clientQuery.trim())}
+                          className="w-full text-left px-3 py-2 text-xs text-custom-cyan font-semibold hover:bg-custom-hover"
+                        >
+                          + Add &quot;{clientQuery.trim()}&quot; as new client
+                        </button>
+                      ) : (
+                        <div className="px-3 py-2 text-xs text-custom-muted">
+                          No clients match
+                        </div>
+                      )
                     )}
                   </div>
                 )}
               </div>
               <label className="text-custom-muted text-[10px] font-semibold uppercase tracking-wider ml-2">POC</label>
-              {(() => {
-                const askerName = currentChat?.askerName ?? '';
-                const pocs = currentClient?.pocs ?? [];
-                const hasPocs = pocs.length > 0;
-                const optionList = askerName && !pocs.includes(askerName)
-                  ? [askerName, ...pocs]
-                  : pocs;
-                return (
-                  <select
-                    value={askerName}
-                    onChange={(e) => setChatAskerName(selectedChatId, e.target.value)}
-                    disabled={!currentClient || !hasPocs}
-                    className="bg-custom-card border border-custom-darkGrey text-custom-white px-3 py-2 text-xs rounded-md focus:outline-none focus:ring-1 focus:ring-custom-cyan w-[160px] disabled:opacity-50"
-                  >
-                    <option value="">
-                      {!currentClient
-                        ? 'Pick a client first'
-                        : !hasPocs
-                        ? 'No POCs configured'
-                        : 'Select POC...'}
-                    </option>
-                    {optionList.map((p) => (
-                      <option key={p} value={p}>
+              <div ref={pocBoxRef} className="relative w-[180px]">
+                <input
+                  type="text"
+                  value={pocQuery}
+                  onChange={(e) => {
+                    setPocQuery(e.target.value);
+                    setPocOpen(true);
+                    setPocHighlight(0);
+                  }}
+                  onFocus={(e) => {
+                    if (currentClient) {
+                      setPocOpen(true);
+                      setPocHighlight(0);
+                      e.currentTarget.select();
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const sug = pocSuggestions[pocHighlight];
+                      if (sug && pocOpen) {
+                        commitPoc(sug);
+                      } else {
+                        commitPoc(pocQuery);
+                      }
+                      e.currentTarget.blur();
+                    } else if (e.key === 'Escape') {
+                      setPocOpen(false);
+                      setPocQuery(currentChat?.askerName ?? '');
+                      e.currentTarget.blur();
+                    } else if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      setPocOpen(true);
+                      setPocHighlight((h) => Math.min(h + 1, pocSuggestions.length - 1));
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setPocHighlight((h) => Math.max(h - 1, 0));
+                    }
+                  }}
+                  placeholder={!currentClient ? 'Pick a client first' : 'Type or pick POC'}
+                  disabled={!currentClient}
+                  className="w-full bg-custom-card border border-custom-darkGrey text-custom-white px-3 py-2 text-xs rounded-md focus:outline-none focus:ring-1 focus:ring-custom-cyan disabled:opacity-50"
+                />
+                {pocOpen && currentClient && (
+                  <div className="absolute z-20 mt-1 w-full max-h-72 overflow-y-auto bg-custom-card border border-custom-darkGrey rounded-md shadow-lg">
+                    {pocSuggestions.map((p, i) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => commitPoc(p)}
+                        onMouseEnter={() => setPocHighlight(i)}
+                        className={`w-full text-left px-3 py-2 text-xs ${
+                          i === pocHighlight ? 'bg-custom-hover' : ''
+                        } ${
+                          currentChat?.askerName === p
+                            ? 'text-custom-cyan font-semibold'
+                            : 'text-custom-white'
+                        }`}
+                      >
                         {p}
-                      </option>
+                      </button>
                     ))}
-                  </select>
-                );
-              })()}
+                    {pocSuggestions.length === 0 && pocQuery.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => commitPoc(pocQuery)}
+                        className="w-full text-left px-3 py-2 text-xs text-custom-cyan font-semibold hover:bg-custom-hover"
+                      >
+                        + Add &quot;{pocQuery.trim()}&quot; to {currentClient.name}
+                      </button>
+                    )}
+                    {pocSuggestions.length === 0 && !pocQuery.trim() && (
+                      <div className="px-3 py-2 text-xs text-custom-muted">
+                        {(currentClient.pocs?.length ?? 0) > 0 ? 'No matches' : 'Type a POC name and press Enter'}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
               {currentClient && (
                 <span className="text-custom-muted text-xs truncate">
                   {currentClient.website_url}
