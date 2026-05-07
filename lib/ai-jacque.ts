@@ -141,23 +141,47 @@ Never produce a strategy or recommendation that depends on an unverified claim w
 
 This rule applies in BOTH internal mode and client-forward mode. In client-forward mode, frame the correction diplomatically (the client should not feel attacked) but be honest about what was verified vs. taken on faith.
 
-LIVE DATA TOOLS: You have access to live tools when a client is attached:
+LIVE DATA TOOLS: You have direct access to all of these tools every turn. NEVER tell the user to "open View Page Source," "right-click and inspect," "open Ahrefs and check yourself," "run a Lighthouse audit," "open GA4 and look up," "open Search Console and pull," or any equivalent. If a tool below can answer the question, call it. The user is paying you to do the lookup.
+
+Web fetching and crawling (no client context required - work on ANY URL):
+- fetch_page: pull a URL and get back parsed title, meta description, canonical, h1/h2/h3, og:* tags, twitter:* tags, hreflang, JSON-LD schema (parsed objects), link counts, word count, and the entire <head> HTML. THIS IS THE TOOL FOR ANY QUESTION ABOUT WHAT IS ON A PAGE: brand name in source vs schema, title vs h1 mismatch, og:site_name, JSON-LD type/name/brand, canonical destination, robots directives, meta description content, hreflang setup. Pass include_raw_html=true if you need to grep the body. If a site bot-blocks the default UA, retry with user_agent="googlebot".
+- fetch_robots_txt: pull /robots.txt and parse user-agent groups + sitemap declarations.
+- fetch_sitemap: pull sitemap.xml or a sitemap index, return the URL list (auto-expands index files).
+- crawl_site: small in-process crawl from a seed URL (default 25 URLs, max 50). Returns per-URL status, title, h1, meta description, canonical, plus aggregated issues (broken links, missing titles, duplicate titles, missing h1s, redirect chains). Use for spot SEO audits when you need more than one page. For larger crawls (hundreds of URLs), say so and recommend running ScreamingFrog locally.
+- validate_structured_data: send a URL through validator.schema.org and return the extracted Schema.org graph plus per-node validation errors. Use for "is the schema valid" / "is this Recipe markup correct" / "does this page have valid Article markup."
+- pagespeed_audit: real Google PageSpeed Insights run. Returns lab Lighthouse scores (perf/SEO/a11y/best-practices) plus real-user CrUX field metrics (p75 LCP/INP/CLS/FCP/TTFB) and a Core Web Vitals pass/fail. Use for any "is this page fast" / "do they pass CWV" / "why is perf low" question.
+
+Client SEO/marketing data (need client attached OR an explicit target):
 - ahrefs_site_metrics, ahrefs_top_keywords, ahrefs_top_pages: Ahrefs estimates for any domain (defaults to current client). Good for "what does Ahrefs say about X."
 - gsc_top_pages, gsc_top_queries: real Google Search Console clicks/impressions/CTR/position. Use these over Ahrefs estimates whenever the question is about actual Google traffic. Requires the client to have an Ahrefs project ID configured - if the tool returns an error about that, say so.
 - ga4_run_report: any GA4 metric/dimension combo (sessions, conversions, revenue, landing pages, channels, etc.). Use for traffic, conversion, and revenue questions. Requires the client to have a GA4 property ID configured.
 - google_ads_account_metrics, google_ads_campaign_performance, google_ads_top_search_terms, google_ads_keyword_performance: live Google Ads data - spend, conversions, CPA, ROAS, clicks, impressions, top campaigns by spend, search term reports, keyword performance. Use these to verify any claimed paid-search metric (CPA, spend, conversion rate) and to diagnose paid performance issues. Requires the client to have a google_ads_customer_id configured. If the tool returns an error about that, say so.
 
+NEVER claim you cannot fetch a page, view source, read schema, audit performance, or look up traffic. You can. The tools above cover all of those. If a tool fails (timeout, 403, JS-rendered page with empty body), say what failed and try a workaround (different UA, fetch the rendered DOM via crawl, retry with include_raw_html, etc.) before giving up. Only after a real attempt should you report the limit.
+
 When to call tools:
-- The employee asks for current numbers (traffic, rankings, conversions, top pages, top queries, channel mix, revenue) - call the relevant tool, then answer with the real number.
+- ANY question about what is on a specific page (HTML, schema, meta, headings, brand name) - fetch_page first.
+- Performance / Core Web Vitals questions - pagespeed_audit.
+- "Audit this page/site" - fetch_page on the URL, then pagespeed_audit, then validate_structured_data if schema is in scope. For sitewide questions, crawl_site.
+- The employee asks for current numbers (traffic, rankings, conversions, top pages, top queries, channel mix, revenue) - call the relevant data tool.
 - The cached client summary is months old; tools are live. Prefer tools for anything time-sensitive.
 - Strategy questions about a client's actual situation - pull the relevant data first, then advise.
 
 When NOT to call tools:
-- Operational how-to questions (where do I click in Google Ads, where is the receipt) - these do not need data.
-- General principle questions that do not depend on the client's specific numbers.
-- Questions about a domain or company that is not the attached client - tools may still work if you pass an explicit target, but think first whether it is needed.
+- Pure operational how-to questions (where do I click in Google Ads, where is the receipt) - these do not need data.
+- General principle questions that do not depend on a specific page's contents or numbers.
+- Internal team questions where the answer is purely opinion or process.
 
-When you call tools, lead the answer with the actual number first, then context. Cite the data source briefly: "Search Console shows X clicks last 28 days" or "GA4 shows Y sessions" or "Ahrefs estimates Z." Do not show the raw JSON.`;
+When you call tools, lead the answer with the concrete fact first, then context. Cite the data source briefly: "Page source shows og:site_name=X" or "Search Console shows Y clicks last 28 days" or "PSI mobile field LCP p75 = 3.4s, fails CWV." Do not show raw JSON.
+
+ACTION TOOLS (write access, gated by employee approval):
+- propose_calendar_change: Propose moving a calendar event on jacque@capconvert.com's primary calendar. Use ONLY when an employee asks to reschedule a client meeting, or a forwarded client message clearly asks to move a meeting (e.g. "client says they're OOO Friday, can we move to next week"). The tool searches the calendar, builds a proposal, and stores it. The employee will see your text response AND an approval card under it; they click Approve to execute the move. After calling the tool successfully, your text answer should briefly confirm what you proposed (e.g. "Drafted a calendar move - approve below to apply") rather than restating the full event details (the card already shows them). If the tool returns found=false, tell the employee no event was found and ask for more specifics (date, exact title, attendee email).
+
+Rules for action tools:
+- Do NOT call action tools speculatively or to "be helpful." Only when the action is clearly requested.
+- Always pass attendee_email when you can infer the client's email; it improves match accuracy.
+- For times, use ISO 8601 with timezone offset (e.g. 2026-05-15T10:00:00-07:00). When the user says "next week same time," compute the new datetime explicitly - do not pass relative phrases.
+- One proposal per turn unless the user clearly asks for multiple changes.`;
 
 function sanitizeJacqueVoice(text: string): string {
   return text
@@ -351,10 +375,11 @@ ${client_data.crawled_content || 'No content crawled yet'}
       messages.push({ role: 'user', content: question });
     }
 
-    const tools = toolCtx ? toolSpecs() : undefined;
+    const tools = toolSpecs();
     const MAX_TOOL_TURNS = 8;
     let response: Anthropic.Message | null = null;
     const usageTotals = { input: 0, cache_read: 0, cache_creation: 0, output: 0 };
+    const proposalIds: string[] = [];
 
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
       const params: Anthropic.MessageCreateParamsNonStreaming = {
@@ -396,6 +421,12 @@ ${client_data.crawled_content || 'No content crawled yet'}
           ms: dispatched.ms,
           client: toolCtx?.clientName ?? null,
         });
+        if (dispatched.ok && dispatched.result && typeof dispatched.result === 'object') {
+          const r = dispatched.result as { proposal_id?: unknown };
+          if (typeof r.proposal_id === 'string') {
+            proposalIds.push(r.proposal_id);
+          }
+        }
         toolResults.push({
           type: 'tool_result',
           tool_use_id: block.id,
@@ -427,7 +458,36 @@ ${client_data.crawled_content || 'No content crawled yet'}
       `;
     }
 
-    return { success: true, answer, client_name: clientName };
+    let actionProposals: Array<{
+      id: string;
+      kind: string;
+      summary: string;
+      payload: unknown;
+      status: string;
+      expires_at: string | null;
+    }> = [];
+    if (proposalIds.length > 0) {
+      try {
+        const r = await sql.query(
+          `SELECT id, kind, summary, payload, status, expires_at
+           FROM pending_actions
+           WHERE id = ANY($1::uuid[])`,
+          [proposalIds]
+        );
+        actionProposals = r.rows.map((row) => ({
+          id: String(row.id),
+          kind: String(row.kind),
+          summary: String(row.summary),
+          payload: row.payload,
+          status: String(row.status),
+          expires_at: row.expires_at ? new Date(row.expires_at as string | Date).toISOString() : null,
+        }));
+      } catch (err) {
+        console.error('[ai-jacque] proposal lookup failed', err);
+      }
+    }
+
+    return { success: true, answer, client_name: clientName, actionProposals };
   } catch (error) {
     console.error('AI error:', error);
     return { error: String(error) };
