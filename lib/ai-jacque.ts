@@ -172,16 +172,7 @@ When NOT to call tools:
 - General principle questions that do not depend on a specific page's contents or numbers.
 - Internal team questions where the answer is purely opinion or process.
 
-When you call tools, lead the answer with the concrete fact first, then context. Cite the data source briefly: "Page source shows og:site_name=X" or "Search Console shows Y clicks last 28 days" or "PSI mobile field LCP p75 = 3.4s, fails CWV." Do not show raw JSON.
-
-ACTION TOOLS (write access, gated by employee approval):
-- propose_calendar_change: Propose moving a calendar event on jacque@capconvert.com's primary calendar. Use ONLY when an employee asks to reschedule a client meeting, or a forwarded client message clearly asks to move a meeting (e.g. "client says they're OOO Friday, can we move to next week"). The tool searches the calendar, builds a proposal, and stores it. The employee will see your text response AND an approval card under it; they click Approve to execute the move. After calling the tool successfully, your text answer should briefly confirm what you proposed (e.g. "Drafted a calendar move - approve below to apply") rather than restating the full event details (the card already shows them). If the tool returns found=false, tell the employee no event was found and ask for more specifics (date, exact title, attendee email).
-
-Rules for action tools:
-- Do NOT call action tools speculatively or to "be helpful." Only when the action is clearly requested.
-- Always pass attendee_email when you can infer the client's email; it improves match accuracy.
-- For times, use ISO 8601 with timezone offset (e.g. 2026-05-15T10:00:00-07:00). When the user says "next week same time," compute the new datetime explicitly - do not pass relative phrases.
-- One proposal per turn unless the user clearly asks for multiple changes.`;
+When you call tools, lead the answer with the concrete fact first, then context. Cite the data source briefly: "Page source shows og:site_name=X" or "Search Console shows Y clicks last 28 days" or "PSI mobile field LCP p75 = 3.4s, fails CWV." Do not show raw JSON.`;
 
 function sanitizeJacqueVoice(text: string): string {
   return text
@@ -379,7 +370,6 @@ ${client_data.crawled_content || 'No content crawled yet'}
     const MAX_TOOL_TURNS = 8;
     let response: Anthropic.Message | null = null;
     const usageTotals = { input: 0, cache_read: 0, cache_creation: 0, output: 0 };
-    const proposalIds: string[] = [];
 
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
       const params: Anthropic.MessageCreateParamsNonStreaming = {
@@ -421,12 +411,6 @@ ${client_data.crawled_content || 'No content crawled yet'}
           ms: dispatched.ms,
           client: toolCtx?.clientName ?? null,
         });
-        if (dispatched.ok && dispatched.result && typeof dispatched.result === 'object') {
-          const r = dispatched.result as { proposal_id?: unknown };
-          if (typeof r.proposal_id === 'string') {
-            proposalIds.push(r.proposal_id);
-          }
-        }
         toolResults.push({
           type: 'tool_result',
           tool_use_id: block.id,
@@ -458,36 +442,7 @@ ${client_data.crawled_content || 'No content crawled yet'}
       `;
     }
 
-    let actionProposals: Array<{
-      id: string;
-      kind: string;
-      summary: string;
-      payload: unknown;
-      status: string;
-      expires_at: string | null;
-    }> = [];
-    if (proposalIds.length > 0) {
-      try {
-        const r = await sql.query(
-          `SELECT id, kind, summary, payload, status, expires_at
-           FROM pending_actions
-           WHERE id = ANY($1::uuid[])`,
-          [proposalIds]
-        );
-        actionProposals = r.rows.map((row) => ({
-          id: String(row.id),
-          kind: String(row.kind),
-          summary: String(row.summary),
-          payload: row.payload,
-          status: String(row.status),
-          expires_at: row.expires_at ? new Date(row.expires_at as string | Date).toISOString() : null,
-        }));
-      } catch (err) {
-        console.error('[ai-jacque] proposal lookup failed', err);
-      }
-    }
-
-    return { success: true, answer, client_name: clientName, actionProposals };
+    return { success: true, answer, client_name: clientName };
   } catch (error) {
     console.error('AI error:', error);
     return { error: String(error) };
