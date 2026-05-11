@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import TopBar from "@/components/TopBar";
 
 export const metadata: Metadata = {
   title: "Jacque, But Better",
@@ -20,7 +21,8 @@ export default function RootLayout({
             "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
         }}
       >
-        {children}
+        <TopBar />
+        <div className="flex flex-1 min-h-0 flex-col">{children}</div>
       </body>
     </html>
   );

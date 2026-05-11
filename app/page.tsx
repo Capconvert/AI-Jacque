@@ -679,7 +679,7 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-custom-black flex">
+    <main className="flex flex-1 min-h-0 bg-custom-black">
       {/* Sidebar */}
       <div
         className="bg-custom-black flex flex-col flex-shrink-0"
