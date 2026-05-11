@@ -271,12 +271,32 @@ export interface ImageInput {
   data: string;
 }
 
+export type AskMode = 'client_question' | 'guidance' | 'pas';
+
+const PAS_FORMAT_INSTRUCTION = `OUTPUT FORMAT OVERRIDE: PAS mode.
+
+The employee has stated an issue internally. Output a CLIENT-FACING message in strict Problem-Agitate-Solution format. This OVERRIDES every other response-shape guideline (operational, strategy, diagnostic, learning, drafting, etc.) for this turn.
+
+Format requirements:
+- Sentence 1 (Problem): One sentence stating what's wrong, in plain client-friendly language. No internal terminology.
+- Sentence 2 (Agitate): One sentence on why it matters - what it costs, risks, or blocks for the client.
+- Sentence 3 (Solution): One sentence on what we are doing or proposing to fix it. Concrete and specific.
+
+Exactly 3 sentences. No more. No bullet lists. No numbered lists. No markdown.
+
+If an Asker (POC) name is provided in the system context, start with "Hello [first name] - " in lowercase, then the 3 sentences as one continuous block. If no POC name is provided, start directly with the Problem sentence.
+
+No file paths. No internal tool names unless they are already client-known. No jargon like "stack", "framework", "infrastructure", "leverage", "roll out", "stand up". Write the way the client would expect to receive a message.
+
+Verification rule still applies: if any claim in the input depends on unverified data, call the relevant tool first and reflect the corrected fact in your 3 sentences.`;
+
 export async function askAIJacque(
   clientId: number | null,
   question: string,
   conversationHistory: string = '',
   images: ImageInput[] = [],
-  askerName: string | null = null
+  askerName: string | null = null,
+  mode: AskMode = 'client_question'
 ) {
   try {
     let clientContext = '';
@@ -332,6 +352,9 @@ ${client_data.crawled_content || 'No content crawled yet'}
     ];
     if (askerLine) {
       systemBlocks.push({ type: 'text', text: askerLine });
+    }
+    if (mode === 'pas') {
+      systemBlocks.push({ type: 'text', text: PAS_FORMAT_INSTRUCTION });
     }
 
     const messages: Anthropic.MessageParam[] = [];

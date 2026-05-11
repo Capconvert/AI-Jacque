@@ -38,7 +38,7 @@ interface Message {
   actionProposals?: ActionProposal[];
 }
 
-type ChatMode = 'client_question' | 'guidance';
+type ChatMode = 'client_question' | 'guidance' | 'pas';
 
 interface Chat {
   id: string;
@@ -619,6 +619,8 @@ export default function Home() {
         body: JSON.stringify({
           question: userMessage,
           conversationHistory,
+          // Guidance: no client / no asker (internal-only). Client Question
+          // and PAS both carry the client + POC.
           clientId: currentMode === 'guidance' ? null : currentChat?.clientId ?? null,
           images: apiImages,
           askerName:
@@ -802,7 +804,7 @@ export default function Home() {
       >
         {selectedChatId ? (
           <>
-            {/* Mode toggle: Client Question vs Guidance */}
+            {/* Mode toggle: Client Question vs Guidance vs PAS */}
             <div className="border-b border-custom-darkGrey px-3 py-2 flex items-center justify-between gap-3">
               <div className="inline-flex rounded-md border border-custom-darkGrey bg-custom-card p-[2px]">
                 <button
@@ -829,16 +831,30 @@ export default function Home() {
                 >
                   Guidance
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setChatMode(selectedChatId, 'pas')}
+                  aria-pressed={currentMode === 'pas'}
+                  className={`px-3 py-1 text-[11px] font-semibold rounded transition-colors ${
+                    currentMode === 'pas'
+                      ? 'bg-custom-cyan text-custom-black'
+                      : 'text-custom-muted hover:text-custom-white'
+                  }`}
+                >
+                  PAS
+                </button>
               </div>
               <span className="text-custom-muted text-[10px]">
                 {currentMode === 'client_question'
                   ? 'Paste a question forwarded from a client. The response is written FOR the client.'
-                  : 'Internal mode. Ask anything - the response is written TO you.'}
+                  : currentMode === 'guidance'
+                  ? 'Internal mode. Ask anything - the response is written TO you.'
+                  : 'State the issue internally. Output is a 3-sentence client-ready message in Problem-Agitate-Solution format.'}
               </span>
             </div>
 
-            {/* Chat header: client picker + asker name (only in Client Question mode) */}
-            {currentMode === 'client_question' && (
+            {/* Chat header: client picker + asker name (Client Question + PAS modes) */}
+            {(currentMode === 'client_question' || currentMode === 'pas') && (
             <div className="border-b border-custom-darkGrey p-3 flex items-center gap-3 flex-wrap">
               <label className="text-custom-muted text-[10px] font-semibold uppercase tracking-wider">Client</label>
               <div ref={clientBoxRef} className="relative w-[240px]">
@@ -1026,6 +1042,10 @@ export default function Home() {
                   <p className="text-custom-white text-base">
                     {currentMode === 'guidance'
                       ? 'Ask Jacque anything. Internal mode.'
+                      : currentMode === 'pas'
+                      ? currentClient
+                        ? `State the issue. We will write a 3-sentence PAS message to ${currentClient.name}.`
+                        : 'Pick a client above, then state the issue. Output is a 3-sentence PAS message for the client.'
                       : currentClient
                       ? `Paste the question ${currentClient.name} asked...`
                       : 'Pick a client above, then paste the question they asked.'}
@@ -1208,6 +1228,8 @@ export default function Home() {
                   placeholder={
                     currentMode === 'guidance'
                       ? 'Ask Jacque anything... (Cmd+V to paste a screenshot)'
+                      : currentMode === 'pas'
+                      ? 'State the issue internally - we will draft the client-facing message in PAS format...'
                       : currentClient
                       ? `Paste the question ${currentClient.name} asked... (Cmd+V to paste a screenshot)`
                       : "Paste the client's question or screenshot... (Cmd+V works)"
