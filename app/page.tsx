@@ -135,6 +135,7 @@ function buildChatTitle(
 export default function Home() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [sidebarCategory, setSidebarCategory] = useState<ChatMode>('client_question');
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<ClientOption[]>([]);
@@ -195,7 +196,11 @@ export default function Home() {
     try {
       const raw = localStorage.getItem('ai-jacque:state');
       if (!raw) return;
-      const parsed = JSON.parse(raw) as { chats?: Chat[]; selectedChatId?: string | null };
+      const parsed = JSON.parse(raw) as {
+        chats?: Chat[];
+        selectedChatId?: string | null;
+        sidebarCategory?: ChatMode;
+      };
       if (Array.isArray(parsed.chats)) {
         const cleaned = parsed.chats.map((c) =>
           c.messages.length === 0 ? { ...c, clientId: null, askerName: '' } : c
@@ -207,6 +212,13 @@ export default function Home() {
         ) {
           setSelectedChatId(parsed.selectedChatId);
         }
+      }
+      if (
+        parsed.sidebarCategory === 'client_question' ||
+        parsed.sidebarCategory === 'guidance' ||
+        parsed.sidebarCategory === 'pas'
+      ) {
+        setSidebarCategory(parsed.sidebarCategory);
       }
     } catch {
       // Corrupt storage - ignore and start fresh
@@ -221,13 +233,13 @@ export default function Home() {
     try {
       localStorage.setItem(
         'ai-jacque:state',
-        JSON.stringify({ chats, selectedChatId })
+        JSON.stringify({ chats, selectedChatId, sidebarCategory })
       );
     } catch (err) {
       // Quota exceeded or storage disabled - log but keep working
       console.warn('[ai-jacque] failed to persist chat state:', err);
     }
-  }, [chats, selectedChatId]);
+  }, [chats, selectedChatId, sidebarCategory]);
 
   useEffect(() => {
     try {
@@ -314,7 +326,7 @@ export default function Home() {
       timestamp: Date.now(),
       clientId: null,
       askerName: '',
-      mode: 'client_question',
+      mode: sidebarCategory,
     };
     setChats((prev) => [newChat, ...prev]);
     setSelectedChatId(newChat.id);
@@ -323,6 +335,12 @@ export default function Home() {
 
   const currentMode: ChatMode =
     (currentChat?.mode ?? 'client_question') as ChatMode;
+
+  // Filter the chat list to the active sidebar category. Backward-compat:
+  // chats missing a mode field default to 'client_question'.
+  const visibleChats = chats.filter(
+    (c) => (c.mode ?? 'client_question') === sidebarCategory
+  );
 
   const setChatMode = (chatId: string, mode: ChatMode) => {
     setChats((prev) =>
@@ -340,6 +358,25 @@ export default function Home() {
       setClientOpen(false);
       setPocOpen(false);
     }
+    // Move the sidebar to follow the chat - the user just re-categorized it,
+    // so the chat is no longer in the old category's history.
+    setSidebarCategory(mode);
+  };
+
+  const pickSidebarCategory = (cat: ChatMode) => {
+    setSidebarCategory(cat);
+    // If the currently-selected chat is no longer visible in this category,
+    // deselect it so the user isn't stuck looking at a chat that's "hidden".
+    const stillVisible = chats.some(
+      (c) => c.id === selectedChatId && (c.mode ?? 'client_question') === cat
+    );
+    if (!stillVisible) setSelectedChatId(null);
+  };
+
+  const CATEGORY_LABELS: Record<ChatMode, string> = {
+    client_question: 'Client Q',
+    guidance: 'Guidance',
+    pas: 'PAS',
   };
 
   const setChatClient = (chatId: string, clientId: number | null) => {
@@ -692,19 +729,52 @@ export default function Home() {
             onClick={createNewChat}
             className="w-full px-3 py-2 rounded-md bg-custom-cyan text-custom-black hover:opacity-90 font-semibold text-xs"
           >
-            + New chat
+            + New {CATEGORY_LABELS[sidebarCategory]} chat
           </button>
+        </div>
+
+        {/* Category tabs - filter chat history by category. */}
+        <div className="px-2 pt-2 pb-1">
+          <div className="flex rounded-md border border-custom-darkGrey bg-custom-card p-[2px]">
+            {(['client_question', 'guidance', 'pas'] as ChatMode[]).map((cat) => {
+              const count = chats.filter(
+                (c) => (c.mode ?? 'client_question') === cat
+              ).length;
+              const active = sidebarCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => pickSidebarCategory(cat)}
+                  aria-pressed={active}
+                  className={`min-w-0 flex-1 truncate rounded px-1 py-[3px] text-center text-[10px] font-semibold transition-colors ${
+                    active
+                      ? 'bg-custom-cyan text-custom-black'
+                      : 'text-custom-muted hover:text-custom-white'
+                  }`}
+                  title={CATEGORY_LABELS[cat]}
+                >
+                  {CATEGORY_LABELS[cat]}
+                  {count > 0 && (
+                    <span className={active ? 'opacity-70 ml-1' : 'opacity-60 ml-1'}>
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Chat List */}
         <div className="flex-1 overflow-y-auto">
-          {chats.length === 0 ? (
+          {visibleChats.length === 0 ? (
             <div className="p-4 text-custom-muted text-xs text-center">
-              No chats yet
+              No {CATEGORY_LABELS[sidebarCategory]} chats yet
             </div>
           ) : (
             <div className="space-y-1 p-2">
-              {chats.map((chat) =>
+              {visibleChats.map((chat) =>
                 editingChatId === chat.id ? (
                   <input
                     key={chat.id}
