@@ -9,11 +9,36 @@ interface AttachedImage {
   mediaType: ImageMediaType;
 }
 
+interface CalendarReschedulePayload {
+  event_id: string;
+  calendar_id?: string;
+  event_summary?: string;
+  attendees?: string[];
+  current_start: { dateTime?: string; timeZone?: string };
+  current_end: { dateTime?: string; timeZone?: string };
+  new_start: { dateTime?: string; timeZone?: string };
+  new_end: { dateTime?: string; timeZone?: string };
+  reason?: string;
+  html_link?: string | null;
+}
+
+interface ActionProposal {
+  id: string;
+  kind: string;
+  summary: string;
+  payload: CalendarReschedulePayload | unknown;
+  status: string;
+  expires_at: string | null;
+}
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
   images?: AttachedImage[];
+  actionProposals?: ActionProposal[];
 }
+
+type ChatMode = 'client_question' | 'guidance';
 
 interface Chat {
   id: string;
@@ -22,6 +47,7 @@ interface Chat {
   timestamp: number;
   clientId: number | null;
   askerName: string;
+  mode?: ChatMode;
 }
 
 interface ClientOption {
@@ -124,12 +150,17 @@ export default function Home() {
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [previewImage, setPreviewImage] = useState<AttachedImage | null>(null);
+  const [sidebarWidth, setSidebarWidth] = useState(256);
+  const [proposalUiStatus, setProposalUiStatus] = useState<
+    Record<string, { status: string; error?: string }>
+  >({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const clientBoxRef = useRef<HTMLDivElement>(null);
   const pocBoxRef = useRef<HTMLDivElement>(null);
   const dragCounter = useRef(0);
   const skipFirstPersist = useRef(true);
+  const resizingRef = useRef(false);
 
   const currentChat = chats.find((c) => c.id === selectedChatId);
   const messages = currentChat?.messages || [];
@@ -199,6 +230,51 @@ export default function Home() {
   }, [chats, selectedChatId]);
 
   useEffect(() => {
+    try {
+      const raw = localStorage.getItem('ai-jacque:sidebar-width');
+      if (!raw) return;
+      const n = parseInt(raw, 10);
+      if (Number.isFinite(n) && n >= 180 && n <= 480) {
+        setSidebarWidth(n);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    resizingRef.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const onMove = (ev: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const next = Math.max(180, Math.min(480, ev.clientX));
+      setSidebarWidth(next);
+    };
+
+    const onUp = () => {
+      resizingRef.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      setSidebarWidth((w) => {
+        try {
+          localStorage.setItem('ai-jacque:sidebar-width', String(w));
+        } catch {
+          // ignore
+        }
+        return w;
+      });
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
+  useEffect(() => {
     setClientQuery(currentClient?.name ?? '');
     setClientOpen(false);
   }, [selectedChatId, currentClient?.name]);
@@ -238,10 +314,32 @@ export default function Home() {
       timestamp: Date.now(),
       clientId: null,
       askerName: '',
+      mode: 'client_question',
     };
     setChats((prev) => [newChat, ...prev]);
     setSelectedChatId(newChat.id);
     setPendingImages([]);
+  };
+
+  const currentMode: ChatMode =
+    (currentChat?.mode ?? 'client_question') as ChatMode;
+
+  const setChatMode = (chatId: string, mode: ChatMode) => {
+    setChats((prev) =>
+      prev.map((chat) => {
+        if (chat.id !== chatId) return chat;
+        if (mode === 'guidance') {
+          return { ...chat, mode, clientId: null, askerName: '' };
+        }
+        return { ...chat, mode };
+      })
+    );
+    if (mode === 'guidance') {
+      setClientQuery('');
+      setPocQuery('');
+      setClientOpen(false);
+      setPocOpen(false);
+    }
   };
 
   const setChatClient = (chatId: string, clientId: number | null) => {
@@ -285,6 +383,61 @@ export default function Home() {
   const cancelChatRename = () => {
     setEditingChatId(null);
     setEditingTitle('');
+  };
+
+  const approveProposal = async (proposalId: string) => {
+    setProposalUiStatus((prev) => ({ ...prev, [proposalId]: { status: 'executing' } }));
+    try {
+      const res = await fetch('./api/actions/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proposal_id: proposalId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setProposalUiStatus((prev) => ({
+          ...prev,
+          [proposalId]: { status: 'error', error: data.error || 'Failed' },
+        }));
+        return;
+      }
+      setProposalUiStatus((prev) => ({ ...prev, [proposalId]: { status: 'executed' } }));
+    } catch (err) {
+      setProposalUiStatus((prev) => ({
+        ...prev,
+        [proposalId]: { status: 'error', error: String(err) },
+      }));
+    }
+  };
+
+  const declineProposal = async (proposalId: string) => {
+    setProposalUiStatus((prev) => ({ ...prev, [proposalId]: { status: 'declined' } }));
+    try {
+      await fetch('./api/actions/dismiss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proposal_id: proposalId }),
+      });
+    } catch {
+      // best-effort; the card stays in 'declined' UI state regardless
+    }
+  };
+
+  const formatTimeForCard = (t: { dateTime?: string; timeZone?: string } | undefined): string => {
+    if (!t?.dateTime) return '';
+    try {
+      return new Date(t.dateTime).toLocaleString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZone: t.timeZone,
+        timeZoneName: 'short',
+      });
+    } catch {
+      return t.dateTime;
+    }
   };
 
   const filteredClients = clientQuery.trim()
@@ -466,20 +619,25 @@ export default function Home() {
         body: JSON.stringify({
           question: userMessage,
           conversationHistory,
-          clientId: currentChat?.clientId ?? null,
+          clientId: currentMode === 'guidance' ? null : currentChat?.clientId ?? null,
           images: apiImages,
-          askerName: currentChat?.askerName?.trim() || null,
+          askerName:
+            currentMode === 'guidance' ? null : currentChat?.askerName?.trim() || null,
+          mode: currentMode,
         }),
       });
       const data = await res.json();
       const assistantMessage = data.answer || data.error || 'No response';
+      const proposals: ActionProposal[] = Array.isArray(data.actionProposals)
+        ? (data.actionProposals as ActionProposal[])
+        : [];
 
       setChats((prev) =>
         prev.map((chat) =>
           chat.id === selectedChatId
             ? {
                 ...chat,
-                messages: [...chat.messages, { role: 'assistant', content: assistantMessage }],
+                messages: [...chat.messages, { role: 'assistant', content: assistantMessage, actionProposals: proposals.length ? proposals : undefined }],
                 title: (() => {
                   if (chat.title !== 'New chat') return chat.title;
                   const resolvedClientName = chat.clientId
@@ -523,7 +681,10 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-custom-black flex">
       {/* Sidebar */}
-      <div className="w-64 bg-custom-black border-r border-custom-darkGrey flex flex-col">
+      <div
+        className="bg-custom-black flex flex-col flex-shrink-0"
+        style={{ width: sidebarWidth }}
+      >
         <div className="p-4 border-b border-custom-darkGrey">
           <button
             onClick={createNewChat}
@@ -582,6 +743,19 @@ export default function Home() {
                     </button>
                     <button
                       type="button"
+                      onClick={() => startEditingChat(chat.id, chat.title)}
+                      title="Rename chat"
+                      aria-label="Rename chat"
+                      className={`opacity-0 group-hover:opacity-100 mr-1 px-1.5 leading-none rounded text-xs ${
+                        selectedChatId === chat.id
+                          ? 'text-custom-black hover:bg-black/15'
+                          : 'text-custom-muted hover:text-custom-white hover:bg-custom-darkGrey'
+                      }`}
+                    >
+                      ✎
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => {
                         if (confirm(`Delete "${chat.title}"?`)) deleteChat(chat.id);
                       }}
@@ -603,6 +777,21 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Resize handle */}
+      <div
+        onMouseDown={startResize}
+        onDoubleClick={() => {
+          setSidebarWidth(256);
+          try {
+            localStorage.setItem('ai-jacque:sidebar-width', '256');
+          } catch {
+            // ignore
+          }
+        }}
+        title="Drag to resize sidebar (double-click to reset)"
+        className="w-1 cursor-col-resize bg-custom-darkGrey hover:bg-custom-cyan/60 transition-colors flex-shrink-0"
+      />
+
       {/* Main Chat Area */}
       <div
         className="flex-1 flex flex-col relative"
@@ -613,7 +802,43 @@ export default function Home() {
       >
         {selectedChatId ? (
           <>
-            {/* Chat header: client picker + asker name */}
+            {/* Mode toggle: Client Question vs Guidance */}
+            <div className="border-b border-custom-darkGrey px-3 py-2 flex items-center justify-between gap-3">
+              <div className="inline-flex rounded-md border border-custom-darkGrey bg-custom-card p-[2px]">
+                <button
+                  type="button"
+                  onClick={() => setChatMode(selectedChatId, 'client_question')}
+                  aria-pressed={currentMode === 'client_question'}
+                  className={`px-3 py-1 text-[11px] font-semibold rounded transition-colors ${
+                    currentMode === 'client_question'
+                      ? 'bg-custom-cyan text-custom-black'
+                      : 'text-custom-muted hover:text-custom-white'
+                  }`}
+                >
+                  Client Question
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChatMode(selectedChatId, 'guidance')}
+                  aria-pressed={currentMode === 'guidance'}
+                  className={`px-3 py-1 text-[11px] font-semibold rounded transition-colors ${
+                    currentMode === 'guidance'
+                      ? 'bg-custom-cyan text-custom-black'
+                      : 'text-custom-muted hover:text-custom-white'
+                  }`}
+                >
+                  Guidance
+                </button>
+              </div>
+              <span className="text-custom-muted text-[10px]">
+                {currentMode === 'client_question'
+                  ? 'Paste a question forwarded from a client. The response is written FOR the client.'
+                  : 'Internal mode. Ask anything - the response is written TO you.'}
+              </span>
+            </div>
+
+            {/* Chat header: client picker + asker name (only in Client Question mode) */}
+            {currentMode === 'client_question' && (
             <div className="border-b border-custom-darkGrey p-3 flex items-center gap-3 flex-wrap">
               <label className="text-custom-muted text-[10px] font-semibold uppercase tracking-wider">Client</label>
               <div ref={clientBoxRef} className="relative w-[240px]">
@@ -792,15 +1017,18 @@ export default function Home() {
                 </span>
               )}
             </div>
+            )}
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {messages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center gap-2 text-center">
                   <p className="text-custom-white text-base">
-                    {currentClient
-                      ? `Ask Jacque about ${currentClient.name}...`
-                      : 'Pick a client above, or ask a general question.'}
+                    {currentMode === 'guidance'
+                      ? 'Ask Jacque anything. Internal mode.'
+                      : currentClient
+                      ? `Paste the question ${currentClient.name} asked...`
+                      : 'Pick a client above, then paste the question they asked.'}
                   </p>
                   <p className="text-custom-muted text-xs">Paste, drag, or attach a screenshot.</p>
                 </div>
@@ -837,6 +1065,91 @@ export default function Home() {
                         )}
                         {msg.content && (
                           <p className="whitespace-pre-wrap">{msg.content}</p>
+                        )}
+                        {msg.role === 'assistant' && msg.actionProposals && msg.actionProposals.length > 0 && (
+                          <div className="mt-3 space-y-2">
+                            {msg.actionProposals.map((proposal) => {
+                              const ui = proposalUiStatus[proposal.id];
+                              const status = ui?.status || proposal.status || 'pending';
+                              const isCalendar = proposal.kind === 'calendar_reschedule';
+                              const p = isCalendar ? (proposal.payload as CalendarReschedulePayload) : null;
+                              return (
+                                <div
+                                  key={proposal.id}
+                                  className={`rounded-md border p-3 text-xs ${
+                                    status === 'executed'
+                                      ? 'border-green-700 bg-green-950/40'
+                                      : status === 'declined'
+                                      ? 'border-custom-darkGrey bg-custom-card opacity-60'
+                                      : status === 'error'
+                                      ? 'border-red-700 bg-red-950/40'
+                                      : 'border-yellow-700 bg-yellow-950/30'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-custom-muted">
+                                      {isCalendar ? 'Calendar change' : proposal.kind}
+                                    </span>
+                                    {status === 'executed' && (
+                                      <span className="text-green-400 text-[10px] font-semibold">✓ Applied</span>
+                                    )}
+                                    {status === 'declined' && (
+                                      <span className="text-custom-muted text-[10px] font-semibold">Dismissed</span>
+                                    )}
+                                    {status === 'executing' && (
+                                      <span className="text-custom-cyan text-[10px] font-semibold">Applying...</span>
+                                    )}
+                                    {status === 'error' && (
+                                      <span className="text-red-400 text-[10px] font-semibold">Failed</span>
+                                    )}
+                                  </div>
+                                  {p && (
+                                    <div className="space-y-1 text-custom-white">
+                                      <div className="font-semibold">{p.event_summary || '(untitled event)'}</div>
+                                      {p.attendees && p.attendees.length > 0 && (
+                                        <div className="text-custom-muted">With: {p.attendees.join(', ')}</div>
+                                      )}
+                                      <div>
+                                        <span className="text-custom-muted">From:</span>{' '}
+                                        {formatTimeForCard(p.current_start)}
+                                      </div>
+                                      <div>
+                                        <span className="text-custom-muted">To:</span>{' '}
+                                        <span className="font-semibold">{formatTimeForCard(p.new_start)}</span>
+                                      </div>
+                                      {p.reason && (
+                                        <div className="text-custom-muted italic">Reason: {p.reason}</div>
+                                      )}
+                                    </div>
+                                  )}
+                                  {!p && (
+                                    <div className="text-custom-white">{proposal.summary}</div>
+                                  )}
+                                  {ui?.error && (
+                                    <div className="mt-2 text-red-400 text-[11px]">{ui.error}</div>
+                                  )}
+                                  {(status === 'pending' || !ui) && status !== 'executed' && status !== 'declined' && status !== 'executing' && status !== 'error' && (
+                                    <div className="mt-3 flex gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => approveProposal(proposal.id)}
+                                        className="px-3 py-1 rounded-md bg-custom-cyan text-custom-black font-semibold text-xs hover:opacity-90"
+                                      >
+                                        Approve
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => declineProposal(proposal.id)}
+                                        className="px-3 py-1 rounded-md border border-custom-darkGrey text-custom-white text-xs hover:bg-custom-card"
+                                      >
+                                        Decline
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -893,7 +1206,9 @@ export default function Home() {
                   onKeyDown={handleKeyDown}
                   onPaste={handlePaste}
                   placeholder={
-                    currentClient
+                    currentMode === 'guidance'
+                      ? 'Ask Jacque anything... (Cmd+V to paste a screenshot)'
+                      : currentClient
                       ? `Paste the question ${currentClient.name} asked... (Cmd+V to paste a screenshot)`
                       : "Paste the client's question or screenshot... (Cmd+V works)"
                   }

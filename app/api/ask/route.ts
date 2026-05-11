@@ -7,8 +7,22 @@ export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
   try {
-    const { question, conversationHistory, clientId: providedClientId, images: rawImages, askerName: rawAskerName } = await request.json();
-    const askerName: string | null = typeof rawAskerName === 'string' && rawAskerName.trim() ? rawAskerName.trim() : null;
+    const {
+      question,
+      conversationHistory,
+      clientId: providedClientId,
+      images: rawImages,
+      askerName: rawAskerName,
+      mode: rawMode,
+    } = await request.json();
+    const mode: 'guidance' | 'client_question' =
+      rawMode === 'guidance' ? 'guidance' : 'client_question';
+    const askerName: string | null =
+      mode === 'guidance'
+        ? null
+        : typeof rawAskerName === 'string' && rawAskerName.trim()
+          ? rawAskerName.trim()
+          : null;
 
     const images: ImageInput[] = Array.isArray(rawImages)
       ? rawImages
@@ -27,11 +41,15 @@ export async function POST(request: NextRequest) {
 
     const history = conversationHistory || '';
 
+    // In Guidance mode the response is for the employee, not a client. Force
+    // internal mode by skipping client inference + dropping the askerName.
     let clientId: number | null = null;
-    if (typeof providedClientId === 'number' && providedClientId > 0) {
-      clientId = providedClientId;
-    } else if (question) {
-      clientId = await findClientByName(question, history);
+    if (mode === 'client_question') {
+      if (typeof providedClientId === 'number' && providedClientId > 0) {
+        clientId = providedClientId;
+      } else if (question) {
+        clientId = await findClientByName(question, history);
+      }
     }
 
     const result = await askAIJacque(clientId, question || '', history, images, askerName);
