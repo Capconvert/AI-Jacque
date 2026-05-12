@@ -4,15 +4,16 @@ import TopBar from "@/components/TopBar";
 
 const OG_IMAGE = "https://www.capconvert.com/cortex/og-image.png";
 const CANONICAL = "https://www.capconvert.com/cortex";
+const TITLE = "Cortex - Search Marketing Intelligence";
 const DESCRIPTION =
   "Capconvert's AI strategist for client and operational questions";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.capconvert.com"),
-  title: "Cortex",
+  title: TITLE,
   description: DESCRIPTION,
   openGraph: {
-    title: "Cortex",
+    title: TITLE,
     description: DESCRIPTION,
     url: CANONICAL,
     siteName: "Capconvert",
@@ -22,14 +23,14 @@ export const metadata: Metadata = {
         url: OG_IMAGE,
         width: 1200,
         height: 630,
-        alt: "Cortex - Capconvert's AI strategist",
+        alt: "Cortex - Search Marketing Intelligence",
         type: "image/png",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Cortex",
+    title: TITLE,
     description: DESCRIPTION,
     images: [OG_IMAGE],
   },
