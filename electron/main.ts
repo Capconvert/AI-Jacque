@@ -18,8 +18,8 @@ const createWindow = () => {
   });
 
   const startUrl = isDev
-    ? 'http://localhost:3000'
-    : 'https://ai-jacque.vercel.app';
+    ? 'http://localhost:3000/cortex'
+    : 'https://www.capconvert.com/cortex';
 
   mainWindow.loadURL(startUrl);
 
@@ -48,10 +48,10 @@ app.on('activate', () => {
 
 const template: Electron.MenuItemConstructorOptions[] = [
   {
-    label: 'AI Jacque',
+    label: 'Cortex',
     submenu: [
       {
-        label: 'About AI Jacque',
+        label: 'About Cortex',
         role: 'about',
       },
       {

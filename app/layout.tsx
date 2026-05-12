@@ -3,8 +3,8 @@ import "./globals.css";
 import TopBar from "@/components/TopBar";
 
 export const metadata: Metadata = {
-  title: "Jacque, But Better",
-  description: "AI assistant for Capconvert client questions",
+  title: "Cortex",
+  description: "Capconvert's AI strategist for client and operational questions",
 };
 
 // Runs synchronously before first paint so the saved theme (or system pref)

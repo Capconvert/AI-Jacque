@@ -66,7 +66,7 @@ async function processQuestion(event: SlackEvent) {
       if (r.ts === event.ts) continue;
       const text = stripMentions(r.text || '');
       if (!text) continue;
-      const role = r.bot_id ? 'AI Jacque' : (employeeFirstName ? `Capconvert teammate ${employeeFirstName}` : 'Capconvert teammate');
+      const role = r.bot_id ? 'Cortex' : (employeeFirstName ? `Capconvert teammate ${employeeFirstName}` : 'Capconvert teammate');
       lines.push(`[${role}]: ${text}`);
     }
     history = lines.slice(-10).join('\n\n');

@@ -1,6 +1,6 @@
-// Top bar mirrored from capconvert-pm's WorkspaceTopBar so AI Jacque feels
+// Top bar mirrored from capconvert-pm's WorkspaceTopBar so Cortex feels
 // like part of the same ops surface. Each tab links absolutely to
-// https://www.capconvert.com/ops/<path>. The current app (AI Jacque) is
+// https://www.capconvert.com/ops/<path>. The current app (Cortex) is
 // rendered as the active wordmark on the left.
 
 import ThemeToggle from './ThemeToggle';
@@ -110,7 +110,7 @@ const TABS: TopBarTab[] = [
 export default function TopBar() {
   return (
     <div className="flex h-11 flex-shrink-0 items-stretch border-b border-custom-darkGrey bg-custom-black">
-      {/* Wordmark linking back to the ops home. AI Jacque is the active app. */}
+      {/* Wordmark linking back to the ops home. Cortex is the active app. */}
       <a
         href={`${OPS_BASE}/`}
         className="flex items-center gap-2 border-r border-custom-darkGrey px-3 transition-colors hover:bg-custom-card"
@@ -124,7 +124,7 @@ export default function TopBar() {
         </span>
       </a>
 
-      {/* AI Jacque "active app" indicator + tabs */}
+      {/* Cortex "active app" indicator + tabs */}
       <div className="flex flex-1 items-stretch overflow-x-auto pl-1">
         <span
           className="flex items-center gap-2 whitespace-nowrap px-3 text-[12px] font-semibold text-custom-cyan"
@@ -143,7 +143,7 @@ export default function TopBar() {
             <path d="M12 8V4H8M4 4h4v4M4 8v8M4 16h4v4M8 20h8M16 20h4v-4M20 16V8M20 8h-4V4M16 4H8" />
             <circle cx="12" cy="12" r="3" />
           </svg>
-          AI Jacque
+          Cortex
         </span>
 
         {TABS.map((tab) => (

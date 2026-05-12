@@ -17,11 +17,15 @@
   },
   "build": {
     "appId": "com.ai-jacque.app",
-    "productName": "AI Jacque",
+    "productName": "Cortex",
     "files": [
       "dist/**/*",
+      "node_modules/**/*",
       "package.json"
     ],
+    "directories": {
+      "buildResources": "build"
+    },
     "extraMetadata": {
       "main": "dist/main.js"
     },
@@ -52,8 +56,13 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@tanstack/react-query": "^5.99.2",
     "@vercel/postgres": "^0.10.0",
     "cheerio": "^1.2.0",
+    "electron-is-dev": "^3.0.1",
     "next": "16.2.4",
     "node-cron": "^4.2.1",
     "react": "19.2.4",
@@ -68,7 +77,6 @@
     "concurrently": "^9.2.1",
     "electron": "^41.2.1",
     "electron-builder": "^26.8.1",
-    "electron-is-dev": "^3.0.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
