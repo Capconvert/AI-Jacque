@@ -15,12 +15,14 @@ export async function POST(request: NextRequest) {
       askerName: rawAskerName,
       mode: rawMode,
     } = await request.json();
-    const mode: 'guidance' | 'client_question' | 'pas' =
+    const mode: 'guidance' | 'client_question' | 'pas' | 'ari' =
       rawMode === 'guidance'
         ? 'guidance'
         : rawMode === 'pas'
           ? 'pas'
-          : 'client_question';
+          : rawMode === 'ari'
+            ? 'ari'
+            : 'client_question';
     const askerName: string | null =
       mode === 'guidance'
         ? null
@@ -47,9 +49,9 @@ export async function POST(request: NextRequest) {
 
     // In Guidance mode the response is for the employee, not a client. Force
     // internal mode by skipping client inference + dropping the askerName.
-    // Client Question and PAS both keep the client context.
+    // Client Question, PAS, and ARI all keep the client context.
     let clientId: number | null = null;
-    if (mode === 'client_question' || mode === 'pas') {
+    if (mode === 'client_question' || mode === 'pas' || mode === 'ari') {
       if (typeof providedClientId === 'number' && providedClientId > 0) {
         clientId = providedClientId;
       } else if (question) {

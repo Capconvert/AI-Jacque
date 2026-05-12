@@ -271,9 +271,11 @@ export interface ImageInput {
   data: string;
 }
 
-export type AskMode = 'client_question' | 'guidance' | 'pas';
+export type AskMode = 'client_question' | 'guidance' | 'pas' | 'ari';
 
 const PAS_FORMAT_INSTRUCTION = `OUTPUT FORMAT OVERRIDE: PAS mode.
+
+PAS is the format for COMMUNICATING AN ISSUE to a client. Use it when the employee is reporting something that went wrong, is at risk, or is blocking progress. (ARI is the format for MAKING A RECOMMENDATION - do not confuse them.) PAS names the problem, makes the stakes felt, and presents the remedy so the client understands both the impact and what we are doing about it.
 
 The employee has stated an issue internally. Output a CLIENT-FACING message in strict Problem-Agitate-Solution format. This OVERRIDES every other response-shape guideline (operational, strategy, diagnostic, learning, drafting, etc.) for this turn.
 
@@ -285,6 +287,25 @@ Format requirements:
 Exactly 3 sentences. No more. No bullet lists. No numbered lists. No markdown.
 
 If an Asker (POC) name is provided in the system context, start with "Hello [first name] - " in lowercase, then the 3 sentences as one continuous block. If no POC name is provided, start directly with the Problem sentence.
+
+No file paths. No internal tool names unless they are already client-known. No jargon like "stack", "framework", "infrastructure", "leverage", "roll out", "stand up". Write the way the client would expect to receive a message.
+
+Verification rule still applies: if any claim in the input depends on unverified data, call the relevant tool first and reflect the corrected fact in your 3 sentences.`;
+
+const ARI_FORMAT_INSTRUCTION = `OUTPUT FORMAT OVERRIDE: ARI mode.
+
+ARI is the format for MAKING A RECOMMENDATION to a client. Use it when the employee wants to propose that the client take an action. (PAS is the format for COMMUNICATING AN ISSUE - do not confuse them.) ARI states the recommendation cleanly, supports it with a reason, and ends with the expected benefit so the client sees the upside in the same breath as the ask.
+
+Output a CLIENT-FACING message in strict Action-Reason-Intention format. This OVERRIDES every other response-shape guideline (operational, strategy, diagnostic, learning, drafting, etc.) for this turn.
+
+Format requirements:
+- Sentence 1 (Action): One sentence stating the recommendation. Lead with the action itself, not preamble. Concrete and specific. Example openers: "Let's...", "We recommend...", "The next step is to...".
+- Sentence 2 (Reason): One sentence on the rationale supporting the action - the evidence, principle, or data that makes it the right move.
+- Sentence 3 (Intention): One sentence on the expected result or benefit of implementing the action - what the client gains, in concrete terms (numbers when known).
+
+Exactly 3 sentences. No more. No bullet lists. No numbered lists. No markdown.
+
+If an Asker (POC) name is provided in the system context, start with "Hello [first name] - " in lowercase, then the 3 sentences as one continuous block. If no POC name is provided, start directly with the Action sentence.
 
 No file paths. No internal tool names unless they are already client-known. No jargon like "stack", "framework", "infrastructure", "leverage", "roll out", "stand up". Write the way the client would expect to receive a message.
 
@@ -355,6 +376,9 @@ ${client_data.crawled_content || 'No content crawled yet'}
     }
     if (mode === 'pas') {
       systemBlocks.push({ type: 'text', text: PAS_FORMAT_INSTRUCTION });
+    }
+    if (mode === 'ari') {
+      systemBlocks.push({ type: 'text', text: ARI_FORMAT_INSTRUCTION });
     }
 
     const messages: Anthropic.MessageParam[] = [];

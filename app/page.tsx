@@ -38,7 +38,7 @@ interface Message {
   actionProposals?: ActionProposal[];
 }
 
-type ChatMode = 'client_question' | 'guidance' | 'pas';
+type ChatMode = 'client_question' | 'guidance' | 'pas' | 'ari';
 
 interface Chat {
   id: string;
@@ -216,7 +216,8 @@ export default function Home() {
       if (
         parsed.sidebarCategory === 'client_question' ||
         parsed.sidebarCategory === 'guidance' ||
-        parsed.sidebarCategory === 'pas'
+        parsed.sidebarCategory === 'pas' ||
+        parsed.sidebarCategory === 'ari'
       ) {
         setSidebarCategory(parsed.sidebarCategory);
       }
@@ -377,6 +378,7 @@ export default function Home() {
     client_question: 'Client Q',
     guidance: 'Guidance',
     pas: 'PAS',
+    ari: 'ARI',
   };
 
   const setChatClient = (chatId: string, clientId: number | null) => {
@@ -736,7 +738,7 @@ export default function Home() {
         {/* Category tabs - filter chat history by category. */}
         <div className="px-2 pt-2 pb-1">
           <div className="flex rounded-md border border-custom-darkGrey bg-custom-card p-[2px]">
-            {(['client_question', 'guidance', 'pas'] as ChatMode[]).map((cat) => {
+            {(['client_question', 'guidance', 'pas', 'ari'] as ChatMode[]).map((cat) => {
               const count = chats.filter(
                 (c) => (c.mode ?? 'client_question') === cat
               ).length;
@@ -874,7 +876,7 @@ export default function Home() {
       >
         {selectedChatId ? (
           <>
-            {/* Mode toggle: Client Question vs Guidance vs PAS */}
+            {/* Mode toggle: Client Question vs Guidance vs PAS vs ARI */}
             <div className="border-b border-custom-darkGrey px-3 py-2 flex items-center justify-between gap-3">
               <div className="inline-flex rounded-md border border-custom-darkGrey bg-custom-card p-[2px]">
                 <button
@@ -913,18 +915,32 @@ export default function Home() {
                 >
                   PAS
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setChatMode(selectedChatId, 'ari')}
+                  aria-pressed={currentMode === 'ari'}
+                  className={`px-3 py-1 text-[11px] font-semibold rounded transition-colors ${
+                    currentMode === 'ari'
+                      ? 'bg-custom-cyan text-custom-black'
+                      : 'text-custom-muted hover:text-custom-white'
+                  }`}
+                >
+                  ARI
+                </button>
               </div>
               <span className="text-custom-muted text-[10px]">
                 {currentMode === 'client_question'
                   ? 'Paste a question forwarded from a client. The response is written FOR the client.'
                   : currentMode === 'guidance'
                   ? 'Internal mode. Ask anything - the response is written TO you.'
-                  : 'State the issue internally. Output is a 3-sentence client-ready message in Problem-Agitate-Solution format.'}
+                  : currentMode === 'pas'
+                  ? 'State the issue internally. Output is a 3-sentence client-ready message in Problem-Agitate-Solution format.'
+                  : 'State the recommendation internally. Output is a 3-sentence client-ready message in Action-Reason-Intention format.'}
               </span>
             </div>
 
-            {/* Chat header: client picker + asker name (Client Question + PAS modes) */}
-            {(currentMode === 'client_question' || currentMode === 'pas') && (
+            {/* Chat header: client picker + asker name (Client Question, PAS, ARI modes) */}
+            {(currentMode === 'client_question' || currentMode === 'pas' || currentMode === 'ari') && (
             <div className="border-b border-custom-darkGrey p-3 flex items-center gap-3 flex-wrap">
               <label className="text-custom-muted text-[10px] font-semibold uppercase tracking-wider">Client</label>
               <div ref={clientBoxRef} className="relative w-[240px]">
