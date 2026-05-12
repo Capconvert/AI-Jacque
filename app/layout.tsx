@@ -2,9 +2,37 @@ import type { Metadata } from "next";
 import "./globals.css";
 import TopBar from "@/components/TopBar";
 
+const OG_IMAGE = "https://www.capconvert.com/cortex/og-image.png";
+const CANONICAL = "https://www.capconvert.com/cortex";
+const DESCRIPTION =
+  "Capconvert's AI strategist for client and operational questions";
+
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.capconvert.com"),
   title: "Cortex",
-  description: "Capconvert's AI strategist for client and operational questions",
+  description: DESCRIPTION,
+  openGraph: {
+    title: "Cortex",
+    description: DESCRIPTION,
+    url: CANONICAL,
+    siteName: "Capconvert",
+    type: "website",
+    images: [
+      {
+        url: OG_IMAGE,
+        width: 1200,
+        height: 630,
+        alt: "Cortex - Capconvert's AI strategist",
+        type: "image/png",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Cortex",
+    description: DESCRIPTION,
+    images: [OG_IMAGE],
+  },
 };
 
 // Runs synchronously before first paint so the saved theme (or system pref)
