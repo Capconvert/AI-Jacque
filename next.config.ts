@@ -5,12 +5,11 @@ import type { NextConfig } from "next";
 // route, asset, and API URL gets the /cortex prefix automatically. Mirrors
 // capconvert-pm's /ops setup.
 //
-// trailingSlash: true so the document URL stays "/cortex/" after navigation.
-// Existing client-side fetches use relative paths like "./api/clients" which
-// only resolve under the basePath when the trailing slash is preserved.
+// Client-side fetches must use absolute "/cortex/api/..." paths. basePath is
+// a Next.js routing concept that does not bend the global fetch() API, so any
+// raw fetch() in a client component needs the prefix baked in.
 const nextConfig: NextConfig = {
   basePath: "/cortex",
-  trailingSlash: true,
 };
 
 export default nextConfig;

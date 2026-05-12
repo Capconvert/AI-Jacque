@@ -26,7 +26,7 @@ export default function Admin() {
         .filter((c) => c.name && c.website_url);
 
       for (const client of clients) {
-        const res = await fetch('/api/clients', {
+        const res = await fetch('/cortex/api/clients', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(client),

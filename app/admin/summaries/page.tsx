@@ -21,7 +21,7 @@ export default function SummariesAdmin() {
   }, []);
 
   const fetchClients = async () => {
-    const res = await fetch('/api/clients');
+    const res = await fetch('/cortex/api/clients');
     const data = await res.json();
     setClients(data);
   };
@@ -29,7 +29,7 @@ export default function SummariesAdmin() {
   const generateSummaries = async () => {
     setGenerating(true);
     try {
-      const res = await fetch('/api/generate-summaries', { method: 'POST' });
+      const res = await fetch('/cortex/api/generate-summaries', { method: 'POST' });
       const result = await res.json();
       alert(result.message);
       fetchClients();
@@ -47,7 +47,7 @@ export default function SummariesAdmin() {
   const saveSummary = async (clientId: number) => {
     setSaving(true);
     try {
-      const res = await fetch('/api/update-summary', {
+      const res = await fetch('/cortex/api/update-summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientId, summary: editValue }),

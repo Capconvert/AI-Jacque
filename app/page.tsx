@@ -183,7 +183,7 @@ export default function Home() {
   }, [previewImage]);
 
   useEffect(() => {
-    fetch('./api/clients')
+    fetch('/cortex/api/clients')
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) setClients(data);
@@ -425,7 +425,7 @@ export default function Home() {
   const approveProposal = async (proposalId: string) => {
     setProposalUiStatus((prev) => ({ ...prev, [proposalId]: { status: 'executing' } }));
     try {
-      const res = await fetch('./api/actions/execute', {
+      const res = await fetch('/cortex/api/actions/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proposal_id: proposalId }),
@@ -450,7 +450,7 @@ export default function Home() {
   const declineProposal = async (proposalId: string) => {
     setProposalUiStatus((prev) => ({ ...prev, [proposalId]: { status: 'declined' } }));
     try {
-      await fetch('./api/actions/dismiss', {
+      await fetch('/cortex/api/actions/dismiss', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proposal_id: proposalId }),
@@ -497,7 +497,7 @@ export default function Home() {
     const trimmed = name.trim();
     if (!trimmed) return;
     try {
-      const res = await fetch('./api/clients', {
+      const res = await fetch('/cortex/api/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: trimmed }),
@@ -547,7 +547,7 @@ export default function Home() {
     );
 
     try {
-      await fetch('./api/clients', {
+      await fetch('/cortex/api/clients', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: currentClient.id, add_poc: trimmed }),
@@ -650,7 +650,7 @@ export default function Home() {
         data: img.dataUrl.split(',')[1] || '',
       }));
 
-      const res = await fetch('./api/ask', {
+      const res = await fetch('/cortex/api/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
