@@ -2,46 +2,76 @@
 @import "tailwindcss/theme";
 @import "tailwindcss/utilities";
 
+/* Light defaults on :root, dark overrides via html.dark. The class is added
+   pre-hydration by the init script in app/layout.tsx so there is no FOUC. */
+:root {
+  --custom-black: #ffffff;
+  --custom-card: #f4f4f4;
+  --custom-hover: #e8e8e8;
+  --custom-cyan: #0099cc;
+  --custom-cyan-text: #0099cc;
+  --custom-fixed-black: #0c0c0c;
+  --custom-white: #1a1a1a;
+  --custom-muted: #5a5a5a;
+  --custom-dim: #8a8a8a;
+  --custom-darkGrey: #d8d8d8;
+  color-scheme: light;
+}
+
+html.dark {
+  --custom-black: #161616;
+  --custom-card: #1c1c1c;
+  --custom-hover: #242424;
+  --custom-cyan: #00ceff;
+  --custom-cyan-text: #00ceff;
+  --custom-fixed-black: #0c0c0c;
+  --custom-white: #f0f0f0;
+  --custom-muted: #999999;
+  --custom-dim: #666666;
+  --custom-darkGrey: #2a2a2a;
+  color-scheme: dark;
+}
+
 .bg-custom-black {
-  background-color: #161616;
+  background-color: var(--custom-black);
 }
 
 .bg-custom-card {
-  background-color: #1c1c1c;
+  background-color: var(--custom-card);
 }
 
 .bg-custom-hover {
-  background-color: #242424;
+  background-color: var(--custom-hover);
 }
 
 .bg-custom-cyan {
-  background-color: #00ceff;
+  background-color: var(--custom-cyan);
 }
 
 .text-custom-black {
-  color: #0c0c0c;
+  color: var(--custom-fixed-black);
 }
 
 .text-custom-cyan {
-  color: #00ceff;
+  color: var(--custom-cyan-text);
 }
 
 .text-custom-white {
-  color: #f0f0f0;
+  color: var(--custom-white);
 }
 
 .text-custom-muted {
-  color: #999999;
+  color: var(--custom-muted);
 }
 
 .text-custom-dim {
-  color: #666666;
+  color: var(--custom-dim);
 }
 
 .text-custom-darkGrey {
-  color: #2a2a2a;
+  color: var(--custom-darkGrey);
 }
 
 .border-custom-darkGrey {
-  border-color: #2a2a2a;
+  border-color: var(--custom-darkGrey);
 }

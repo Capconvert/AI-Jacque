@@ -3,6 +3,8 @@
 // https://www.capconvert.com/ops/<path>. The current app (AI Jacque) is
 // rendered as the active wordmark on the left.
 
+import ThemeToggle from './ThemeToggle';
+
 const OPS_BASE = 'https://www.capconvert.com/ops';
 
 interface TopBarTab {
@@ -154,6 +156,10 @@ export default function TopBar() {
             <span className="overflow-hidden">{tab.label}</span>
           </a>
         ))}
+      </div>
+
+      <div className="flex items-center border-l border-custom-darkGrey px-2">
+        <ThemeToggle />
       </div>
     </div>
   );
