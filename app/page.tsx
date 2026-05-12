@@ -132,6 +132,19 @@ function buildChatTitle(
   return clientName ? `${clientName} - ${summary}` : summary;
 }
 
+// Title for the chat sidebar when only the auto-detected client and POC
+// are known (the user has attached a screenshot but not yet typed a
+// question). "RentRedi - Kelly" reads at a glance in the list.
+function buildAutoTitle(
+  clientName: string | null,
+  pocName: string | null
+): string {
+  if (clientName && pocName) return `${clientName} - ${pocName}`;
+  if (clientName) return clientName;
+  if (pocName) return pocName;
+  return 'New chat';
+}
+
 export default function Home() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
@@ -564,7 +577,82 @@ export default function Home() {
     if (arr.length === 0) return;
     const processed = await Promise.all(arr.map(processImage));
     const valid = processed.filter((p): p is AttachedImage => p !== null);
-    if (valid.length > 0) setPendingImages((prev) => [...prev, ...valid]);
+    if (valid.length === 0) return;
+    setPendingImages((prev) => [...prev, ...valid]);
+    // Best-effort: ask the server to extract client + POC from the
+    // screenshots so the chat picker / asker field / title can fill in
+    // before the user even hits send. Silently skipped in Guidance mode
+    // (the response is internal, so picker + asker are hidden anyway) and
+    // skipped if no chat is selected.
+    void detectAndApplyContext(valid);
+  };
+
+  // Fires after images are attached. Calls /api/detect-context with the
+  // newly-attached images, then patches the active chat: clientId,
+  // askerName, and the chat title get filled in if they are still empty.
+  // Never overwrites a value the user has set manually.
+  const detectAndApplyContext = async (newImages: AttachedImage[]) => {
+    if (!selectedChatId) return;
+    const chat = chats.find((c) => c.id === selectedChatId);
+    if (!chat || chat.mode === 'guidance') return;
+    try {
+      const res = await fetch('/cortex/api/detect-context', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          images: newImages.map((img) => ({
+            mediaType: img.mediaType,
+            data: img.dataUrl.split(',')[1] || '',
+          })),
+        }),
+      });
+      if (!res.ok) return;
+      const data: { client?: string | null; poc?: string | null } = await res.json();
+      const detectedClientName = data.client?.trim() || null;
+      const detectedPoc = data.poc?.trim() || null;
+      if (!detectedClientName && !detectedPoc) return;
+
+      // Match the detected client name to a known client. Try exact, then
+      // case-insensitive, then strip-non-alphanumeric (handles "Doggie
+      // Lawn" vs "DoggieLawn").
+      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const matchedClient = detectedClientName
+        ? clients.find((c) => c.name === detectedClientName) ||
+          clients.find(
+            (c) => c.name.toLowerCase() === detectedClientName.toLowerCase()
+          ) ||
+          clients.find((c) => norm(c.name) === norm(detectedClientName))
+        : null;
+
+      setChats((prev) =>
+        prev.map((c) => {
+          if (c.id !== selectedChatId) return c;
+          const nextClientId =
+            c.clientId == null && matchedClient ? matchedClient.id : c.clientId;
+          const nextAsker =
+            !c.askerName?.trim() && detectedPoc ? detectedPoc : c.askerName;
+          const nextTitle =
+            c.title === 'New chat'
+              ? buildAutoTitle(
+                  matchedClient?.name ??
+                    (c.clientId
+                      ? clients.find((cl) => cl.id === c.clientId)?.name ?? null
+                      : null),
+                  nextAsker?.trim() || null
+                )
+              : c.title;
+          return {
+            ...c,
+            clientId: nextClientId,
+            askerName: nextAsker,
+            title: nextTitle,
+          };
+        })
+      );
+    } catch (err) {
+      // Detection is best-effort; never block the user on it.
+      console.warn('[cortex] detect-context failed', err);
+    }
   };
 
   const removePendingImage = (index: number) => {
