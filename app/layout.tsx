@@ -6,7 +6,7 @@ const OG_IMAGE = "https://www.capconvert.com/cortex/og-image.png";
 const CANONICAL = "https://www.capconvert.com/cortex";
 const TITLE = "Cortex - Search Marketing Intelligence";
 const DESCRIPTION =
-  "Capconvert's AI strategist for client and operational questions";
+  "Always on search marketing assistant. Get answers to any question regarding any platform.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.capconvert.com"),
