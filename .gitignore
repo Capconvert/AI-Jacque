@@ -19,6 +19,8 @@
 
 # production
 /build
+# Track the electron-builder icon resource so the brain ships with the repo.
+!/build/icon.png
 
 # misc
 .DS_Store
