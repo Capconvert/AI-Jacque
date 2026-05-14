@@ -18,8 +18,8 @@
 /out/
 
 # production
-/build
-# Track the electron-builder icon resource so the brain ships with the repo.
+# /build is electron-builder output; ignore its contents but ship the brain icon resource.
+/build/*
 !/build/icon.png
 
 # misc
